@@ -1,0 +1,66 @@
+{% extends 'pages/base.html' %}
+
+{% block title %}Главная - Цифровой Ассистент{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="text-center mb-5">
+            <h1 class="display-4">Добро пожаловать!</h1>
+            <p class="lead">Цифровой ассистент для управления курсовыми проектами</p>
+            <div class="alert alert-info">
+                <strong>Статус проекта:</strong> Активная разработка<br>
+                <strong>Дата:</strong> {{ current_date }}
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Для студентов</h5>
+                        <p class="card-text">Удобный выбор и подача заявок на курсовые проекты</p>
+                        <span class="badge bg-secondary">В разработке</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Для преподавателей</h5>
+                        <p class="card-text">Управление проектами, заявками и оценками</p>
+                        <span class="badge bg-secondary">В разработке</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Для ЦППРП</h5>
+                        <p class="card-text">Администрирование и мониторинг всего процесса</p>
+                        <span class="badge bg-secondary">В разработке</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <h3 class="mb-3">Используемые технологии</h3>
+            <div class="d-flex flex-wrap gap-2">
+                {% for tech in technologies %}
+                <span class="badge bg-primary">{{ tech }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="text-center mt-5">
+            <a href="#" class="btn btn-primary btn-lg disabled">
+                Войти в систему (скоро)
+            </a>
+            <p class="text-muted mt-2">Система находится в стадии разработки</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'pages/base.html' %}
+
+{% block title %}О проекте{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <h1 class="mb-4">О проекте "Цифровой Ассистент Студента"</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Цели проекта</h5>
+                <p class="card-text">
+                    Разработка клиентской части веб-приложения для упрощения процесса выбора и подачи заявок на курсовые проекты.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Основные функции</h5>
+                <ul>
+                    <li>Удобный интерфейс для студентов</li>
+                    <li>Управление проектами для преподавателей</li>
+                    <li>Администрирование для ЦППРП</li>
+                    <li>Ролевой доступ к функциям</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">🛠 Техническая информация</h5>
+                <p><strong>Фреймворк:</strong> Django {{ django_version }}</p>
+                <p><strong>Дата запуска:</strong> {{ start_date }}</p>
+                <p><strong>Статус:</strong> Курсовой проект, 3 курс</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
