@@ -15,3 +15,16 @@ def test_health_root_ok():
     r = c.get(reverse("health-root"))
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
+
+
+def test_api_v1_health_ok():
+    c = Client()
+    r = c.get(reverse("api-v1-health"))
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
+def test_api_v1_projects_list_ok():
+    c = Client()
+    r = c.get(reverse("api-v1-project-list"))
+    assert r.status_code == 200

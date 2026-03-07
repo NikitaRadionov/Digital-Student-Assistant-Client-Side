@@ -11,13 +11,11 @@ class UserProjectInlineSerializer(serializers.Serializer):
 
 class UserPublicSerializer(serializers.ModelSerializer):
     username = serializers.CharField(read_only=True)
-    this_is_not_real = serializers.CharField(read_only=True)
     id = serializers.IntegerField(read_only=True)
-    # other_projects = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
-        fields = ["username", "this_is_not_real", "id"]
+        fields = ["username", "id"]
 
     # def get_other_projects(self, obj):
     #     # request = self.context.get('request')

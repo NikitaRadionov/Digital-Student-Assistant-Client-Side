@@ -75,7 +75,9 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     # internal apps
     "apps.base",
+    "apps.users",
     "apps.projects",
+    "apps.applications",
     "apps.search",
     # healthchecks
     "health_check",  # core
@@ -174,4 +176,5 @@ ALGOLIA = {
     "APPLICATION_ID": os.getenv("ALGOLIA_APPLICATION_ID", ""),
     "API_KEY": os.getenv("ALGOLIA_API_KEY", ""),
     "INDEX_PREFIX": os.getenv("ALGOLIA_INDEX_PREFIX", "SERJ"),
+    "AUTO_INDEXING": env_bool("ALGOLIA_AUTO_INDEXING", False),
 }

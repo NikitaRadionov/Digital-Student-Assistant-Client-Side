@@ -1,123 +1,101 @@
-# from django.http import Http404
-from apps.base.mixins import StaffEditorPermissionMixin, UserQuerySetMixin
-from apps.base.permissions import IsStaffEditorPermission
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, mixins
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Project
+from .models import Project, ProjectStatus
 from .serializers import PrimaryProjectSerializer
 
 
-class ProjectListCreateAPIView(
-    generics.ListCreateAPIView, UserQuerySetMixin, StaffEditorPermissionMixin
-):
-    """
-    Docstring for ProjectListCreateAPIView
-
-    GET for List
-    POST for creation
-    """
-
-    queryset = Project.objects.all()
+class ProjectListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Project.objects.select_related("owner")
     serializer_class = PrimaryProjectSerializer
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return self.queryset.filter(
+                Q(status=ProjectStatus.PUBLISHED) | Q(owner=user)
+            ).distinct()
+        return self.queryset.filter(status=ProjectStatus.PUBLISHED)
+
     def perform_create(self, serializer):
-        # serializer.save(user=self.request.user)
-        # print(serializer.validated_data)
-        # email = serializer.validated_data.pop("email")
-        # print(email)
-        title = serializer.validated_data.get("title")
-        content = serializer.validated_data.get("content")
-
-        if content is None:
-            content = title
-
-        serializer.save(user=self.request.user, content=content)  # form.save() model.save()
-        # send django signal
-
-        # return super().perform_create(serializer)
-
-    # def get_queryset(self, *args, **kwargs):
-    #     qs = super().get_queryset(*args, **kwargs)
-    #     request = self.request
-    #     user = request.user
-    #     # print(request.user)
-    #     if not user.is_authenticated:
-    #         return Project.objects.none()
-
-    #     return qs.filter(user=request.user)
+        serializer.save(owner=self.request.user)
 
 
 project_list_create_view = ProjectListCreateAPIView.as_view()
 
 
-class ProjectDetailAPIView(StaffEditorPermissionMixin, UserQuerySetMixin, generics.RetrieveAPIView):
-    """
-    Docstring for ProjectDetailAPIView
-
-    GET for lookup_field
-    """
-
-    queryset = Project.objects.all()
+class ProjectDetailAPIView(generics.RetrieveAPIView):
+    queryset = Project.objects.select_related("owner")
     serializer_class = PrimaryProjectSerializer
-    # lookup_field = 'pk'
-    # Project.objects.get(pk)
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return self.queryset.filter(
+                Q(status=ProjectStatus.PUBLISHED) | Q(owner=user)
+            ).distinct()
+        return self.queryset.filter(status=ProjectStatus.PUBLISHED)
 
 
 project_detail_view = ProjectDetailAPIView.as_view()
 
 
-class ProjectUpdateAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.UpdateAPIView):
-    """
-    Docstring for ProjectUpdateAPIView
-    """
-
-    queryset = Project.objects.all()
+class ProjectUpdateAPIView(generics.UpdateAPIView):
+    queryset = Project.objects.select_related("owner")
     serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"
 
-    def perform_update(self, serializer):
-        instance = serializer.save()
-        if not instance.content:
-            instance.content = instance.titile
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return self.queryset
+        return self.queryset.filter(owner=user)
 
 
 project_update_view = ProjectUpdateAPIView.as_view()
 
 
-class ProjectDestroyAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.DestroyAPIView):
-    """
-    Docstring for ProjectDestroyAPIView
-    """
-
-    queryset = Project.objects.all()
+class ProjectDestroyAPIView(generics.DestroyAPIView):
+    queryset = Project.objects.select_related("owner")
     serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"
 
-    def perform_destroy(self, instance):
-        super().perform_destroy(instance)
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return self.queryset
+        return self.queryset.filter(owner=user)
 
 
 project_destroy_view = ProjectDestroyAPIView.as_view()
 
 
-# class ProjectListAPIView(generics.ListAPIView):
-#     """
-#     Docstring for ProjectListAPIView
+class ProjectRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Project.objects.select_related("owner")
+    serializer_class = PrimaryProjectSerializer
+    lookup_field = "pk"
 
-#     GET for List
-#     """
+    def get_queryset(self):
+        user = self.request.user
+        if self.request.method in {"GET", "HEAD", "OPTIONS"}:
+            if user.is_authenticated:
+                return self.queryset.filter(
+                    Q(status=ProjectStatus.PUBLISHED) | Q(owner=user)
+                ).distinct()
+            return self.queryset.filter(status=ProjectStatus.PUBLISHED)
 
-#     queryset = Project.objects.all()
-#     serializer_class = PrimaryProjectSerializer
+        if user.is_staff:
+            return self.queryset
+        return self.queryset.filter(owner=user)
 
 
-# project_list_view = ProjectListAPIView.as_view()
+project_rud_view = ProjectRetrieveUpdateDestroyAPIView.as_view()
 
 
-class CreateAPIView(mixins.CreateModelMixin, UserQuerySetMixin, generics.GenericAPIView):
+class CreateAPIView(mixins.CreateModelMixin, generics.GenericAPIView):
     pass
 
 
@@ -127,35 +105,28 @@ class ProjectMixinView(
     mixins.RetrieveModelMixin,
     generics.GenericAPIView,
 ):
-
-    queryset = Project.objects.all()
+    queryset = Project.objects.select_related("owner")
     serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return self.queryset.filter(
+                Q(status=ProjectStatus.PUBLISHED) | Q(owner=user)
+            ).distinct()
+        return self.queryset.filter(status=ProjectStatus.PUBLISHED)
+
     def get(self, request, *args, **kwargs):
-        print(args, kwargs)
-        pk = kwargs.get("pk")
-
-        if pk is not None:
+        if kwargs.get("pk") is not None:
             return self.retrieve(request, *args, **kwargs)
-
         return self.list(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-
         return self.create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        # serializer.save(user=self.request.user)
-        # print(serializer.validated_data)
-
-        # title = serializer.validated_data.get("title")
-        content = serializer.validated_data.get("content")
-
-        if content is None:
-            content = "{title}"
-
-        serializer.save(content=content)
+        serializer.save(owner=self.request.user)
 
 
 project_mixin_view = ProjectMixinView.as_view()
@@ -163,36 +134,19 @@ project_mixin_view = ProjectMixinView.as_view()
 
 @api_view(["GET", "POST"])
 def project_alt_view(request, pk=None, *args, **kwargs):
-    method = request.method
-
-    if method == "GET":
+    if request.method == "GET":
         if pk is not None:
-            # get request -> detail view
-            # queryset = Project.objects.filter(pk=pk)
-            # if not queryset.exists():
-            #     raise Http404
             obj = get_object_or_404(Project, pk=pk)
-            data = PrimaryProjectSerializer(obj, many=False).data
-            return Response(data)
+            return Response(PrimaryProjectSerializer(obj, many=False).data)
 
-        # list view
-        queryset = Project.objects.all()
-        data = PrimaryProjectSerializer(queryset, many=True).data
-        return Response(data)
-        # url_args
+        queryset = Project.objects.filter(status=ProjectStatus.PUBLISHED)
+        if request.user.is_authenticated:
+            queryset = Project.objects.filter(
+                Q(status=ProjectStatus.PUBLISHED) | Q(owner=request.user)
+            ).distinct()
+        return Response(PrimaryProjectSerializer(queryset, many=True).data)
 
-    if method == "POST":
-        serializer = PrimaryProjectSerializer(data=request.data)
-
-        if serializer.is_valid(raise_exception=True):
-            # instance = serializer.save()
-            title = serializer.validated_data.get("title")
-            content = serializer.validated_data.get("content")
-
-            if content is None:
-                content = title
-            serializer.save(content=content)
-
-            return Response({"data": serializer.data})
-
-        return Response({"invalid": "not good data"}, status=400)
+    serializer = PrimaryProjectSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save(owner=request.user)
+    return Response({"data": serializer.data})
