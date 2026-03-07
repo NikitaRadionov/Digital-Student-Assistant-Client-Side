@@ -39,13 +39,13 @@ class IsStaffEditorPermission(permissions.DjangoModelPermissions):
 
     #     if user.is_staff:
 
-    #         if user.has_perm("projects.add_product"): # "app_name.verb_model_name"
+    #         if user.has_perm("projects.add_project"): # "app_name.verb_model_name"
     #             return True
-    #         if user.has_perm("projects.delete_product"):
+    #         if user.has_perm("projects.delete_project"):
     #             return True
-    #         if user.has_perm("projects.change_product"):
+    #         if user.has_perm("projects.change_project"):
     #             return True
-    #         if user.has_perm("projects.view_product"):
+    #         if user.has_perm("projects.view_project"):
     #             return True
 
     #         return False

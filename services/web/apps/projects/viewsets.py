@@ -1,38 +1,38 @@
 from rest_framework import mixins, viewsets
 
-from .models import Product
-from .serializers import PrimaryProductSerializer
+from .models import Project
+from .serializers import PrimaryProjectSerializer
 
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(viewsets.ModelViewSet):
     """
-    Docstring for ProductViewSet
+    Docstring for ProjectViewSet
     get -> list -> Queryset
-    get -> retrive -> Product instance detail view
+    get -> retrive -> Project instance detail view
     post -> create -> new instance
     put -> update
     patch -> partial update
     delete -> destroy
     """
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"  # default
 
 
-class ProductGenericViewSet(
+class ProjectGenericViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     """
-    Docstring for ProductGenericViewSet
+    Docstring for ProjectGenericViewSet
     get -> list -> Queryset
-    get -> retrive -> Product instance detail view
+    get -> retrive -> Project instance detail view
     """
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"  # default
 
 
-product_list_view = ProductGenericViewSet.as_view({"get": "list"})
-product_detail_view = ProductGenericViewSet.as_view({"get": "retrive"})
+project_list_view = ProjectGenericViewSet.as_view({"get": "list"})
+project_detail_view = ProjectGenericViewSet.as_view({"get": "retrive"})

@@ -6,22 +6,22 @@ from rest_framework import generics, mixins
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import Product
-from .serializers import PrimaryProductSerializer
+from .models import Project
+from .serializers import PrimaryProjectSerializer
 
 
-class ProductListCreateAPIView(
+class ProjectListCreateAPIView(
     generics.ListCreateAPIView, UserQuerySetMixin, StaffEditorPermissionMixin
 ):
     """
-    Docstring for ProductListCreateAPIView
+    Docstring for ProjectListCreateAPIView
 
     GET for List
     POST for creation
     """
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
 
     def perform_create(self, serializer):
         # serializer.save(user=self.request.user)
@@ -45,37 +45,37 @@ class ProductListCreateAPIView(
     #     user = request.user
     #     # print(request.user)
     #     if not user.is_authenticated:
-    #         return Product.objects.none()
+    #         return Project.objects.none()
 
     #     return qs.filter(user=request.user)
 
 
-product_list_create_view = ProductListCreateAPIView.as_view()
+project_list_create_view = ProjectListCreateAPIView.as_view()
 
 
-class ProductDetailAPIView(StaffEditorPermissionMixin, UserQuerySetMixin, generics.RetrieveAPIView):
+class ProjectDetailAPIView(StaffEditorPermissionMixin, UserQuerySetMixin, generics.RetrieveAPIView):
     """
-    Docstring for ProductDetailAPIView
+    Docstring for ProjectDetailAPIView
 
     GET for lookup_field
     """
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
     # lookup_field = 'pk'
-    # Product.objects.get(pk)
+    # Project.objects.get(pk)
 
 
-product_detail_view = ProductDetailAPIView.as_view()
+project_detail_view = ProjectDetailAPIView.as_view()
 
 
-class ProductUpdateAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.UpdateAPIView):
+class ProjectUpdateAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.UpdateAPIView):
     """
-    Docstring for ProductUpdateAPIView
+    Docstring for ProjectUpdateAPIView
     """
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"
 
     def perform_update(self, serializer):
@@ -84,52 +84,52 @@ class ProductUpdateAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.
             instance.content = instance.titile
 
 
-product_update_view = ProductUpdateAPIView.as_view()
+project_update_view = ProjectUpdateAPIView.as_view()
 
 
-class ProductDestroyAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.DestroyAPIView):
+class ProjectDestroyAPIView(IsStaffEditorPermission, UserQuerySetMixin, generics.DestroyAPIView):
     """
-    Docstring for ProductDestroyAPIView
+    Docstring for ProjectDestroyAPIView
     """
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"
 
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
 
 
-product_destroy_view = ProductDestroyAPIView.as_view()
+project_destroy_view = ProjectDestroyAPIView.as_view()
 
 
-# class ProductListAPIView(generics.ListAPIView):
+# class ProjectListAPIView(generics.ListAPIView):
 #     """
-#     Docstring for ProductListAPIView
+#     Docstring for ProjectListAPIView
 
 #     GET for List
 #     """
 
-#     queryset = Product.objects.all()
-#     serializer_class = PrimaryProductSerializer
+#     queryset = Project.objects.all()
+#     serializer_class = PrimaryProjectSerializer
 
 
-# product_list_view = ProductListAPIView.as_view()
+# project_list_view = ProjectListAPIView.as_view()
 
 
 class CreateAPIView(mixins.CreateModelMixin, UserQuerySetMixin, generics.GenericAPIView):
     pass
 
 
-class ProductMixinView(
+class ProjectMixinView(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     generics.GenericAPIView,
 ):
 
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
     lookup_field = "pk"
 
     def get(self, request, *args, **kwargs):
@@ -158,31 +158,31 @@ class ProductMixinView(
         serializer.save(content=content)
 
 
-product_mixin_view = ProductMixinView.as_view()
+project_mixin_view = ProjectMixinView.as_view()
 
 
 @api_view(["GET", "POST"])
-def product_alt_view(request, pk=None, *args, **kwargs):
+def project_alt_view(request, pk=None, *args, **kwargs):
     method = request.method
 
     if method == "GET":
         if pk is not None:
             # get request -> detail view
-            # queryset = Product.objects.filter(pk=pk)
+            # queryset = Project.objects.filter(pk=pk)
             # if not queryset.exists():
             #     raise Http404
-            obj = get_object_or_404(Product, pk=pk)
-            data = PrimaryProductSerializer(obj, many=False).data
+            obj = get_object_or_404(Project, pk=pk)
+            data = PrimaryProjectSerializer(obj, many=False).data
             return Response(data)
 
         # list view
-        queryset = Product.objects.all()
-        data = PrimaryProductSerializer(queryset, many=True).data
+        queryset = Project.objects.all()
+        data = PrimaryProjectSerializer(queryset, many=True).data
         return Response(data)
         # url_args
 
     if method == "POST":
-        serializer = PrimaryProductSerializer(data=request.data)
+        serializer = PrimaryProjectSerializer(data=request.data)
 
         if serializer.is_valid(raise_exception=True):
             # instance = serializer.save()

@@ -1,11 +1,11 @@
 from algoliasearch_django import AlgoliaIndex
 from algoliasearch_django.decorators import register
 
-from .models import Product
+from .models import Project
 
 
-@register(Product)
-class ProductIndex(AlgoliaIndex):
+@register(Project)
+class ProjectIndex(AlgoliaIndex):
     should_index = "is_public"
     fields = [
         "title",
@@ -17,4 +17,4 @@ class ProductIndex(AlgoliaIndex):
     tags = "get_tags_list"
 
 
-# admin.site.register(Product, ProductModelAdmin)
+# admin.site.register(Project, ProjectModelAdmin)

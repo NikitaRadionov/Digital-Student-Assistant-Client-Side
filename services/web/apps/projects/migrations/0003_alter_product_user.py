@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("projects", "0002_product_user"),
+        ("projects", "0002_project_user"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name="product",
+            model_name="project",
             name="user",
             field=models.ForeignKey(
                 default=1,

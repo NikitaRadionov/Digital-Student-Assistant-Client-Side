@@ -6,12 +6,12 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("projects", "0003_alter_product_user"),
+        ("projects", "0003_alter_project_user"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name="product",
+            model_name="project",
             name="public",
             field=models.BooleanField(default=True),
         ),

@@ -7,11 +7,11 @@ DEBUG = False
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise RuntimeError("Production settings require DJANGO_SECRET_KEY (or SECRET_KEY).")
+    raise RuntimeError("Projection settings require DJANGO_SECRET_KEY (or SECRET_KEY).")
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS") or env_list("ALLOWED_HOSTS")
 if not ALLOWED_HOSTS:
-    raise RuntimeError("Production settings require DJANGO_ALLOWED_HOSTS (comma-separated).")
+    raise RuntimeError("Projection settings require DJANGO_ALLOWED_HOSTS (comma-separated).")
 
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

@@ -1,16 +1,16 @@
-from apps.projects.models import Product
-from apps.projects.serializers import PrimaryProductSerializer
+from apps.projects.models import Project
+from apps.projects.serializers import PrimaryProjectSerializer
 from rest_framework import generics
 
 
 class SearchListView(generics.ListAPIView):
-    queryset = Product.objects.all()
-    serializer_class = PrimaryProductSerializer
+    queryset = Project.objects.all()
+    serializer_class = PrimaryProjectSerializer
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         q = self.request.GET.get("q")
-        results = Product.objects.none()
+        results = Project.objects.none()
         if q is not None:
             user = None
             if self.request.user.is_authenticated:

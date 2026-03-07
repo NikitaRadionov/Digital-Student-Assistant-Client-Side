@@ -1,14 +1,14 @@
 import requests
 
-product_id = input("what is the product ID u want to use?\n")
+project_id = input("what is the project ID u want to use?\n")
 try:
-    product_id = int(product_id)
+    project_id = int(project_id)
 except BaseException:
-    print(f"{product_id} not a valid ID")
-    product_id = None
+    print(f"{project_id} not a valid ID")
+    project_id = None
 
-if product_id:
-    endpoint = f"http://localhost:8001/base/projects/{product_id}/delete/"
+if project_id:
+    endpoint = f"http://localhost:8001/base/projects/{project_id}/delete/"
 
     get_response = requests.delete(endpoint)
     print(get_response.status_code, get_response.status_code == 204)

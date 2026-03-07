@@ -1,12 +1,12 @@
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .models import Product
+from .models import Project
 
 # def validate_title(value):
-#     qs = Product.objects.filter(title__iexact=value) # title__exact
+#     qs = Project.objects.filter(title__iexact=value) # title__exact
 #     if qs.exists():
-#         raise serializers.ValidationError(f"{value} is already a product name.")
+#         raise serializers.ValidationError(f"{value} is already a project name.")
 #     return value
 
 
@@ -16,4 +16,4 @@ def validate_title_no_hello(value):
     return value
 
 
-unique_product_title = UniqueValidator(queryset=Product.objects.all(), lookup="iexact")
+unique_project_title = UniqueValidator(queryset=Project.objects.all(), lookup="iexact")

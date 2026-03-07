@@ -8,7 +8,7 @@ User = settings.AUTH_USER_MODEL  # string auth.User
 TAGS_MODEL_VALUES = ["electronics", "cars", "boats", "movies", "cameras"]
 
 
-class ProductQuerySet(models.QuerySet):
+class ProjectQuerySet(models.QuerySet):
     def is_public(self):
         return self.filter(public=True)
 
@@ -21,22 +21,22 @@ class ProductQuerySet(models.QuerySet):
         return qs
 
 
-class ProductManager(models.Manager):
+class ProjectManager(models.Manager):
     def get_queryset(self, *args, **kwargs):
-        return ProductQuerySet(self.model, using=self._db)
+        return ProjectQuerySet(self.model, using=self._db)
 
     def search(self, query, user=None):
         return self.get_queryset().search(query, user=user)
 
 
-class Product(models.Model):
+class Project(models.Model):
     user = models.ForeignKey(User, default=1, null=True, on_delete=models.SET_NULL)
     title = models.CharField(max_length=120)
     content = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=15, decimal_places=2, default=99.99)
     public = models.BooleanField(default=True)
 
-    objects = ProductManager()
+    objects = ProjectManager()
 
     def is_public(self) -> bool:
         return self.public
