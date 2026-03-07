@@ -28,4 +28,16 @@ uv run --group dev isort .
     cd services/ml
     uv run --with pytest pytest -q tests
 )
+
+if [[ "${CHECK_BUILD:-0}" == "1" ]]; then
+    (
+        cd services/web
+        uv run --with build python -m build
+    )
+    (
+        cd services/ml
+        uv run --with build python -m build
+    )
+fi
+
 uv run --group dev pre-commit run --all-files

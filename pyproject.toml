@@ -50,4 +50,4 @@ package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
 include = ["services*"]
-exclude = ["tests*", "docs*", "reports*", "EVIDENCE*", "security*", "htmlcov*"]
+exclude = ["tests*", "docs*", "reports*", "EVIDENCE*", "security*", "htmlcov*", "*.egg-info*", "__pycache__*"]
