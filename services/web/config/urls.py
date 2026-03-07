@@ -23,6 +23,8 @@ urlpatterns = [
     path("", home_page, name="home"),
     path("health/", health_custom, name="health-root"),
     path("admin/", admin.site.urls),
+    path("api/v1/", include("config.api_v1_urls")),
+    # Legacy routes kept for backward compatibility.
     path("api/", include("apps.api.urls")),
     path("base/search", include("apps.search.urls")),
     path("base/", include("apps.base.urls")),

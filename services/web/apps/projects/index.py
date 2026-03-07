@@ -9,10 +9,9 @@ class ProjectIndex(AlgoliaIndex):
     should_index = "is_public"
     fields = [
         "title",
-        "content",
-        "price",
-        "public",
-        # "user" # have a problem with serializer
+        "description",
+        "status",
+        "tech_tags",
     ]
     tags = "get_tags_list"
 

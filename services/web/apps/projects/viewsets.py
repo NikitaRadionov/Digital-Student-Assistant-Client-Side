@@ -35,4 +35,4 @@ class ProjectGenericViewSet(
 
 
 project_list_view = ProjectGenericViewSet.as_view({"get": "list"})
-project_detail_view = ProjectGenericViewSet.as_view({"get": "retrive"})
+project_detail_view = ProjectGenericViewSet.as_view({"get": "retrieve"})
