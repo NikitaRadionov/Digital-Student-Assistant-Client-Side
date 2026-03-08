@@ -15,6 +15,8 @@ class PrimaryProjectSerializer(serializers.ModelSerializer):
     owner = UserPublicSerializer(read_only=True)
     edit_url = serializers.SerializerMethodField(read_only=True)
     url = serializers.HyperlinkedIdentityField(view_name="api-v1-project-detail", lookup_field="pk")
+    extra_data = serializers.JSONField(required=False, allow_null=True, default=dict)
+    tech_tags = serializers.JSONField(required=False, allow_null=True, default=dict)
 
     title = serializers.CharField(
         validators=[validators.unique_project_title, validators.validate_title_no_hello]
@@ -43,6 +45,16 @@ class PrimaryProjectSerializer(serializers.ModelSerializer):
         if request is None:
             return None
         return reverse("api-v1-project-detail", kwargs={"pk": obj.pk}, request=request)
+
+    def validate_extra_data(self, value):
+        if value is None:
+            return {}
+        return value
+
+    def validate_tech_tags(self, value):
+        if value is None:
+            return {}
+        return value
 
 
 class SecondaryProjectSerializer(serializers.ModelSerializer):
