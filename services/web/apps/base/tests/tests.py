@@ -61,6 +61,13 @@ def test_api_schema_exposes_projects_query_params():
     assert {"page", "page_size", "status", "q", "ordering"}.issubset(param_names)
 
 
+def test_api_docs_page_ok():
+    c = Client()
+    r = c.get(reverse("api-docs"))
+    assert r.status_code == 200
+    assert b"swagger" in r.content.lower()
+
+
 def test_legacy_api_is_under_legacy_prefix():
     c = Client()
     r = c.get(reverse("legacy-api-root"))
