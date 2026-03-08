@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from apps.projects.admin import ProjectAdmin
+from apps.projects.admin import ProjectAdmin, ProjectAdminForm
 from apps.projects.models import Project, ProjectStatus
 from django.contrib import admin
 
@@ -31,6 +31,24 @@ def test_project_admin_fast_manual_entry_defaults():
     assert project_admin.list_select_related == ("owner",)
     assert project_admin.readonly_fields == ("created_at", "updated_at")
     assert project_admin.list_per_page == 50
+
+
+def test_project_admin_uses_readable_fieldsets():
+    project_admin = _project_admin()
+
+    assert [name for name, _ in project_admin.fieldsets] == [
+        "Core information",
+        "Source and tags",
+        "Additional metadata",
+        "System fields",
+    ]
+
+
+def test_project_admin_form_help_texts_for_json_fields():
+    form = ProjectAdminForm()
+
+    assert "JSON array" in form.fields["tech_tags"].help_text
+    assert "Leave empty unless needed" in form.fields["extra_data"].help_text
 
 
 def test_project_admin_actions_registered():
