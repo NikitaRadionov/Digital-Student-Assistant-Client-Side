@@ -23,10 +23,6 @@ uv sync --group dev
 export PYTHONPATH=.
 ```
 
-```bash
-uvicorn src.ml.app.main:app --reload
-```
-
 ## Docker
 
 ```bash
