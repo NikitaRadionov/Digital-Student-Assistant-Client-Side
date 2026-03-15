@@ -1,4 +1,4 @@
-src:
+services:
   postgres_master:
     container_name: web_data
     image: postgres:16-alpine

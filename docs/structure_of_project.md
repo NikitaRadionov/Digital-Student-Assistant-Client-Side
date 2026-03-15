@@ -69,7 +69,7 @@ Digital-Student-Assistant/
 │  │  │  ├─ core/
 │  │  │  ├─ repositories/
 │  │  │  ├─ schemas/
-│  │  │  ├─ src/
+│  │  │  ├─ services/
 │  │  │  └─ workers/
 │  │  └─ tests/
 │  │     ├─ unit/
