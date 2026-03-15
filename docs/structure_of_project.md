@@ -31,7 +31,7 @@ Digital-Student-Assistant/
 ├─ security/
 │  ├─ seccomp/
 │  └─ semgrep/
-├─ services/
+├─ src/
 │  ├─ web/                         # Django + DRF
 │  │  ├─ Dockerfile
 │  │  ├─ pyproject.toml
@@ -98,7 +98,7 @@ Digital-Student-Assistant/
 └─ uv.lock
 ```
 
-## Web Domain Apps (`services/web/apps`)
+## Web Domain Apps (`src/web/apps`)
 
 - `base`: authentication, permissions, shared API endpoints, health endpoint.
 - `projects`: main project domain (models, serializers, validators, viewsets).
@@ -111,7 +111,7 @@ Digital-Student-Assistant/
 
 ## Notes vs Target Architecture
 
-- `services/graph/` is already present as a separate service; naming can be aligned later to `services/graph_projector/` if needed.
+- `src/graph/` is already present as a separate service; naming can be aligned later to `src/graph_projector/` if needed.
 - `contracts/` directory is not created yet (OpenAPI/events source-of-truth still pending as a separate step).
 - `docs/architecture`, `docs/data`, `docs/events`, `docs/openapi`, `docs/security` are not yet split into dedicated folders.
 - `infra/docker-compose.test.yml` currently lives in `tests/integration/docker-compose.test.yml`.
