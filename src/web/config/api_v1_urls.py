@@ -5,6 +5,11 @@ from apps.projects.views import (
     project_list_create_view,
     project_rud_view,
 )
+from apps.recs.views import (
+    RecommendationListAPIView,
+    RecommendationReindexAPIView,
+    SearchProxyAPIView,
+)
 from apps.search.views import SearchListView
 from django.urls import include, path
 from rest_framework.authtoken.views import obtain_auth_token
@@ -16,6 +21,9 @@ urlpatterns = [
     path("health/", health_custom, name="api-v1-health"),
     path("auth/token/", obtain_auth_token, name="api-v1-auth-token"),
     path("search/", SearchListView.as_view(), name="api-v1-search"),
+    path("recs/search/", SearchProxyAPIView.as_view(), name="api-v1-recs-search"),
+    path("recs/recommendations/", RecommendationListAPIView.as_view(), name="api-v1-recs-recommendations"),
+    path("recs/reindex/", RecommendationReindexAPIView.as_view(), name="api-v1-recs-reindex"),
     path("projects/", project_list_create_view, name="api-v1-project-list"),
     path(
         "projects/<int:pk>/actions/submit/",

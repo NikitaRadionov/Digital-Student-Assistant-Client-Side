@@ -63,6 +63,11 @@
           Ваш проект
         </span>
       {% endif %}
+      {% if project.source_type == "initiative" %}
+        <span class="inline-flex items-center px-2 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200" style="padding-top:3px;padding-bottom:3px;">
+          Инициативный
+        </span>
+      {% endif %}
     </div>
 
     <!-- Title -->
@@ -159,6 +164,15 @@
             <p class="text-xs text-gray-400 truncate">{{ project.owner.email }}</p>
           </div>
         </div>
+      </div>
+      <hr class="border-gray-100 mb-5">
+      {% endif %}
+
+      <!-- Supervisor (initiative projects) -->
+      {% if project.supervisor_name %}
+      <div class="mb-5">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Желаемый руководитель</p>
+        <p class="text-sm font-medium text-gray-700">{{ project.supervisor_name }}</p>
       </div>
       <hr class="border-gray-100 mb-5">
       {% endif %}

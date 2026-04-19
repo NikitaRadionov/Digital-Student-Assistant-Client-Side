@@ -18,6 +18,8 @@ urlpatterns = [
     path("projects/<int:pk>/submit-application/", views.submit_application,        name="submit_application"),
     path("projects/<int:pk>/submit/",             views.project_submit_moderation, name="project_submit_moderation"),
     path("projects/<int:pk>/delete/",             views.project_delete,            name="project_delete"),
+    path("projects/<int:pk>/bookmark/",           views.toggle_bookmark,           name="toggle_bookmark"),
+    path("projects/initiative/",                  views.initiative_project_create, name="initiative_project_create"),
 
     # Applications
     path("applications/",            views.application_list,        name="application_list"),
@@ -29,6 +31,9 @@ urlpatterns = [
     # Moderation
     path("moderation/",                     views.moderation_list,          name="moderation_list"),
     path("moderation/<int:pk>/decide/",     views.moderate_project_decide,  name="moderate_project_decide"),
+
+    # Recommendations (student only)
+    path("recommendations/", views.recommendations_view, name="recommendations"),
 
     # Profile
     path("profile/", views.profile_view, name="profile"),

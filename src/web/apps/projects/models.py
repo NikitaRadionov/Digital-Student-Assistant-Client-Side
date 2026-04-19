@@ -126,6 +126,13 @@ class Project(models.Model):
         verbose_name="Moderation comment",
         help_text="Reason/comment for moderation decision.",
     )
+    supervisor_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Supervisor name",
+        help_text="Optional desired supervisor for student initiative projects.",
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
@@ -161,3 +168,24 @@ class Project(models.Model):
         if isinstance(self.tech_tags, list):
             return [str(tag) for tag in self.tech_tags]
         return []
+
+
+class Bookmark(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="bookmarks",
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="bookmarks",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "project")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} → {self.project_id}"

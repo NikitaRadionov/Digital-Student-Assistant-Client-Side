@@ -9,6 +9,9 @@ from .projects import (
     project_edit,
     project_submit_moderation,
     project_delete,
+    recommendations_view,
+    toggle_bookmark,
+    initiative_project_create,
 )
 from .applications import (
     apply_to_project,
@@ -33,6 +36,9 @@ __all__ = [
     "project_edit",
     "project_submit_moderation",
     "project_delete",
+    "recommendations_view",
+    "toggle_bookmark",
+    "initiative_project_create",
     # applications
     "apply_to_project",
     "submit_application",
