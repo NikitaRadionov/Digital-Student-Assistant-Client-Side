@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from apps.projects.models import Bookmark, Project, ProjectSourceType, ProjectStatus
+from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.users.models import UserProfile, UserRole
 
 User = get_user_model()
@@ -88,20 +88,22 @@ def test_toggle_bookmark_creates_and_removes():
     client = Client()
     client.force_login(student)
 
-    # First toggle — should create bookmark
+    # First toggle — should add to favorites
     url = reverse("frontend:toggle_bookmark", kwargs={"pk": project.pk})
     response = client.post(url, HTTP_X_CSRFTOKEN="fake", content_type="application/json")
     assert response.status_code == 200
     data = response.json()
     assert data["bookmarked"] is True
-    assert Bookmark.objects.filter(user=student, project=project).exists()
+    student.profile.refresh_from_db()
+    assert project.pk in student.profile.favorite_project_ids
 
-    # Second toggle — should remove bookmark
+    # Second toggle — should remove from favorites
     response = client.post(url, HTTP_X_CSRFTOKEN="fake", content_type="application/json")
     assert response.status_code == 200
     data = response.json()
     assert data["bookmarked"] is False
-    assert not Bookmark.objects.filter(user=student, project=project).exists()
+    student.profile.refresh_from_db()
+    assert project.pk not in student.profile.favorite_project_ids
 
 
 def test_project_detail_redirects_anonymous_to_auth():
@@ -137,7 +139,8 @@ def test_toggle_bookmark_requires_login():
 def test_bookmarked_project_appears_in_bookmarks_tab():
     student = _make_student()
     project = _make_project()
-    Bookmark.objects.create(user=student, project=project)
+    student.profile.set_favorite_project_ids([project.pk])
+    student.profile.save(update_fields=["favorite_project_ids"])
     client = Client()
     client.force_login(student)
     response = client.get(reverse("frontend:project_list"))
@@ -269,7 +272,9 @@ def test_profile_view_shows_student_stats():
         source_type=ProjectSourceType.INITIATIVE,
         status=ProjectStatus.ON_MODERATION,
     )
-    Bookmark.objects.create(user=student, project=_make_project())
+    bm_project = _make_project()
+    student.profile.set_favorite_project_ids([bm_project.pk])
+    student.profile.save(update_fields=["favorite_project_ids"])
     client = Client()
     client.force_login(student)
     response = client.get(reverse("frontend:profile"))

@@ -6,11 +6,16 @@ User = settings.AUTH_USER_MODEL
 
 
 class ProjectStatus(models.TextChoices):
+    CREATED = "created", "Created"
     DRAFT = "draft", "Draft"
+    REVISION_REQUESTED = "revision_requested", "Revision requested"
+    SUPERVISOR_REVIEW = "supervisor_review", "Supervisor review"
     ON_MODERATION = "on_moderation", "On moderation"
     PUBLISHED = "published", "Published"
     REJECTED = "rejected", "Rejected"
     STAFFED = "staffed", "Staffed"
+    COMPLETED = "completed", "Completed"
+    CANCELLED = "cancelled", "Cancelled"
     ARCHIVED = "archived", "Archived"
 
     @classmethod
@@ -133,6 +138,64 @@ class Project(models.Model):
         verbose_name="Supervisor name",
         help_text="Optional desired supervisor for student initiative projects.",
     )
+
+    # --- EPP display fields (synced with main branch) ---
+    study_course = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Study course",
+        help_text="Recommended course for applicants when known.",
+    )
+    education_program = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Education program",
+        help_text="Recommended education program or OP for applicants.",
+    )
+    application_deadline = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Application deadline",
+        help_text="Date when the application window closes for this project.",
+    )
+    work_format = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Work format",
+        help_text="Work format (remote / on-site / hybrid).",
+    )
+    credits = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Credits",
+        help_text="Academic credits awarded for participation.",
+    )
+    hours_per_week = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Hours per week",
+        help_text="Student load in hours per week.",
+    )
+    is_paid = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name="Is paid",
+        help_text="Whether participation is paid.",
+    )
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Location",
+        help_text="Implementation location.",
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
@@ -170,22 +233,3 @@ class Project(models.Model):
         return []
 
 
-class Bookmark(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="bookmarks",
-    )
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="bookmarks",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("user", "project")
-        ordering = ["-created_at"]
-
-    def __str__(self) -> str:
-        return f"{self.user_id} → {self.project_id}"

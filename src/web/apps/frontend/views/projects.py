@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django import forms as dj_forms
 from django.contrib import messages
@@ -15,10 +16,14 @@ from apps.users.models import UserRole
 
 logger = logging.getLogger(__name__)
 
+# Allowed tag pattern: starts with a letter/digit, may contain letters, digits,
+# spaces, hyphens, dots, +, #, _.  Max length enforced separately.
+_TAG_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9 \-\.+#_]*$")
+
 PAGE_SIZE = 9
 RECOMMENDED_COUNT = 4
 
-_LOCKED_STATUSES   = {ProjectStatus.PUBLISHED, ProjectStatus.STAFFED, "archived"}
+_LOCKED_STATUSES   = {ProjectStatus.PUBLISHED, ProjectStatus.STAFFED, ProjectStatus.ARCHIVED}
 _DELETABLE_STATUSES = {ProjectStatus.DRAFT, ProjectStatus.REJECTED}
 
 
@@ -51,7 +56,16 @@ class ProjectFrontendForm(dj_forms.Form):
         raw = self.cleaned_data.get("tech_tags_raw", "")
         if not raw.strip():
             return []
-        return [t.strip().lower() for t in raw.split(",") if t.strip()]
+        tags = [t.strip().lower() for t in raw.split(",") if t.strip()]
+        invalid = [t for t in tags if len(t) > 50 or not _TAG_RE.match(t)]
+        if invalid:
+            raise dj_forms.ValidationError(
+                "Недопустимые теги: %(tags)s. "
+                "Используйте буквы, цифры, дефис, точку, +, #. "
+                "Максимум 50 символов на тег.",
+                params={"tags": ", ".join(invalid)},
+            )
+        return tags
 
 
 # ---------------------------------------------------------------------------
@@ -181,8 +195,6 @@ def project_list(request):
         )
 
     # --- Bookmarks tab (all authenticated users) ---
-    from apps.projects.models import Bookmark
-
     show_bookmarks_tab        = False
     bookmarked_ids            = set()
     bookmark_projects         = []
@@ -190,19 +202,17 @@ def project_list(request):
 
     if request.user.is_authenticated:
         show_bookmarks_tab = True
-        bm_qs = (
-            Bookmark.objects
-            .filter(user=request.user)
-            .select_related("project__owner")
-            .order_by("-created_at")
-        )
-        bookmarked_ids    = {b.project_id for b in bm_qs}
-        bookmark_projects = [b.project for b in bm_qs]
-        if bookmark_projects:
-            bm_ids = [p.id for p in bookmark_projects]
+        fav_ids = list(request.user.profile.favorite_project_ids)
+        bookmarked_ids = set(fav_ids)
+        if fav_ids:
+            bookmark_projects = list(
+                Project.objects
+                .filter(pk__in=fav_ids)
+                .select_related("owner")
+            )
             bm_apps = Application.objects.filter(
                 applicant=request.user,
-                project_id__in=bm_ids,
+                project_id__in=fav_ids,
             ).values("project_id", "status")
             bookmark_user_applications = {a["project_id"]: a["status"] for a in bm_apps}
 
@@ -292,7 +302,114 @@ def _customer_project_list(request):
         "ProjectStatus": ProjectStatus,
         "counts":        counts,
         "total_count":   base_qs.count(),
+        "sample_articles": _get_sample_articles(),
+        "sample_staff":    _get_sample_staff(),
     })
+
+
+def _get_sample_articles():
+    """
+    Sample academic articles for the Articles tab.
+
+    Structure is intentionally compatible with:
+    - publications.hse.ru  (title, authors, venue, year, doi_url, direction)
+    - OpenAlex API         (title, authors, venue, publication_year, doi, concepts)
+
+    Replace this list with a real API call when a data source is confirmed.
+    """
+    return [
+        {
+            "title":     "Recommender Systems for Project-Student Matching in Higher Education",
+            "authors":   ["Иванов А. В.", "Смирнова Е. Н."],
+            "venue":     "Educational Data Mining. 2023. Vol. 15. P. 112–128",
+            "year":      2023,
+            "doi_url":   "https://doi.org/10.5555/example1",
+            "keywords":  ["recommender systems", "higher education", "student matching"],
+            "direction": "Компьютерные науки",
+        },
+        {
+            "title":     "Graph-Based Knowledge Representation for Academic Collaboration Networks",
+            "authors":   ["Петров И. С."],
+            "venue":     "Journal of Information Science. 2022. Vol. 48. No. 3. P. 341–359",
+            "year":      2022,
+            "doi_url":   "https://doi.org/10.5555/example2",
+            "keywords":  ["knowledge graphs", "Neo4j", "academic networks"],
+            "direction": "Информационные системы",
+        },
+        {
+            "title":     "Machine Learning Approaches to Automated Project Supervision Assignment",
+            "authors":   ["Козлова М. Д.", "Фёдоров П. А.", "Белов С. Г."],
+            "venue":     "Artificial Intelligence in Education. 2023. Vol. 9. P. 78–94",
+            "year":      2023,
+            "doi_url":   "https://doi.org/10.5555/example3",
+            "keywords":  ["machine learning", "project supervision", "automation"],
+            "direction": "Компьютерные науки",
+        },
+        {
+            "title":     "Модели компетентностного подхода в управлении студенческими проектами",
+            "authors":   ["Волкова Т. И."],
+            "venue":     "Вопросы образования. 2022. № 2. С. 88–109",
+            "year":      2022,
+            "doi_url":   "https://doi.org/10.5555/example4",
+            "keywords":  ["компетентностный подход", "студенческие проекты", "управление"],
+            "direction": "Педагогика",
+        },
+        {
+            "title":     "Natural Language Processing for Research Topic Extraction in University Repositories",
+            "authors":   ["Морозов Д. К.", "Новикова А. Л."],
+            "venue":     "Information Processing Letters. 2021. Vol. 168. P. 106–119",
+            "year":      2021,
+            "doi_url":   "https://doi.org/10.5555/example5",
+            "keywords":  ["NLP", "topic extraction", "university repositories"],
+            "direction": "Компьютерные науки",
+        },
+    ]
+
+
+def _get_sample_staff():
+    """
+    Sample scientific staff for the Staff tab.
+
+    Structure is compatible with:
+    - hse.ru/org/persons/  (name, position, department, profile_url)
+    - OpenAlex authors API (name, works_count, research_areas, orcid as profile_url)
+
+    Replace this list with a real API call or DB query when a data source is confirmed.
+    """
+    return [
+        {
+            "name":           "Иванов Александр Викторович",
+            "position":       "Профессор",
+            "department":     "Факультет компьютерных наук",
+            "research_areas": ["Machine Learning", "Recommender Systems"],
+            "works_count":    58,
+            "profile_url":    "https://www.hse.ru/org/persons/",
+        },
+        {
+            "name":           "Смирнова Елена Николаевна",
+            "position":       "Доцент",
+            "department":     "Школа анализа данных",
+            "research_areas": ["Natural Language Processing", "Text Mining"],
+            "works_count":    34,
+            "profile_url":    "https://www.hse.ru/org/persons/",
+        },
+        {
+            "name":           "Петров Игорь Сергеевич",
+            "position":       "Старший научный сотрудник",
+            "department":     "Институт проблем передачи информации",
+            "research_areas": ["Knowledge Graphs", "Graph Databases", "Neo4j"],
+            "works_count":    27,
+            "profile_url":    "https://www.hse.ru/org/persons/",
+        },
+        {
+            "name":           "Козлова Мария Дмитриевна",
+            "position":       "Доцент",
+            "department":     "Департамент больших данных и информационного поиска",
+            "research_areas": ["Deep Learning", "Computer Vision"],
+            "works_count":    41,
+            "profile_url":    "https://www.hse.ru/org/persons/",
+        },
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +622,16 @@ class InitiativeProjectForm(dj_forms.Form):
         raw = self.cleaned_data.get("tech_tags_raw", "")
         if not raw.strip():
             return []
-        return [t.strip().lower() for t in raw.split(",") if t.strip()]
+        tags = [t.strip().lower() for t in raw.split(",") if t.strip()]
+        invalid = [t for t in tags if len(t) > 50 or not _TAG_RE.match(t)]
+        if invalid:
+            raise dj_forms.ValidationError(
+                "Недопустимые теги: %(tags)s. "
+                "Используйте буквы, цифры, дефис, точку, +, #. "
+                "Максимум 50 символов на тег.",
+                params={"tags": ", ".join(invalid)},
+            )
+        return tags
 
 
 @login_required(login_url="/auth/")
@@ -548,14 +674,19 @@ def initiative_project_create(request):
 @require_POST
 @login_required(login_url="/auth/")
 def toggle_bookmark(request, pk):
-    from apps.projects.models import Bookmark
     from django.http import JsonResponse
 
-    project = get_object_or_404(Project, pk=pk)
-    obj, created = Bookmark.objects.get_or_create(user=request.user, project=project)
-    if not created:
-        obj.delete()
+    get_object_or_404(Project, pk=pk)
+    profile = request.user.profile
+    favorites = list(profile.favorite_project_ids)
+
+    if pk in favorites:
+        favorites.remove(pk)
         bookmarked = False
     else:
+        favorites.append(pk)
         bookmarked = True
+
+    profile.set_favorite_project_ids(favorites)
+    profile.save(update_fields=["favorite_project_ids"])
     return JsonResponse({"bookmarked": bookmarked})

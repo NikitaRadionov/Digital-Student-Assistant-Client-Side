@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from apps.applications.models import Application
-from apps.projects.models import Bookmark, Project, ProjectSourceType, ProjectStatus
+from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.users.models import UserRole
 
 
@@ -53,7 +53,7 @@ def profile_view(request):
     initiative_count   = 0
     if role == UserRole.STUDENT:
         applications_count = Application.objects.filter(applicant=user).count()
-        bookmarks_count    = Bookmark.objects.filter(user=user).count()
+        bookmarks_count    = len(profile.favorite_project_ids) if profile else 0
         initiative_count   = Project.objects.filter(
             owner=user, source_type=ProjectSourceType.INITIATIVE
         ).count()
