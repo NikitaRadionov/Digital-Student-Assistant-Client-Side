@@ -1,13 +1,13 @@
 # Digital-Student-Assistant
 
-**Цифровой Ассистент Студента** — платформа студенческих проектов НИУ ВШЭ.
+**Цифровой Ассистент Студента** — платформа выбора студенческих проектов НИУ ВШЭ.
 
 ---
 
 ## Моя часть проекта — SSR Frontend
 
 Ниже представлены файлы и директории, реализованные в рамках данной курсовой работы.
-Всё остальное (DRF API, ML-сервис, Graph-сервис, модели предметной области, инфраструктура) — написано отдельно.
+Всё остальное — написано отдельно.
 
 ```
 src/web/
@@ -32,12 +32,12 @@ src/web/
 │   │
 │   ├── projects/
 │   │   └── migrations/
-│   │       ├── 0009_remove_bookmark.py          Удаление модели Bookmark
-│   │       └── 0010_add_epp_display_fields.py   EPP-поля у Project
+│   │       ├── 0009_remove_bookmark.py         
+│   │       └── 0010_add_epp_display_fields.py
 │   │
 │   └── users/
 │       └── migrations/
-│           └── 0003_userprofile_favorite_project_ids.py  Закладки в профиле
+│           └── 0003_userprofile_favorite_project_ids.py
 │
 └── templates/
     └── frontend/
@@ -108,8 +108,23 @@ src/web/
 
 ---
 
-## Артефакты
+## Архитектура
 
+| Компонент | Стек | Порт |
+|-----------|------|------|
+| SSR Frontend + DRF API | Django, HTMX 1.9, Tailwind CSS v2 | :8000 |
+| ML-сервис | FastAPI, keyword-heuristic (готов к подключению sentence-transformers) | :8001 |
+| Graph-сервис | FastAPI + Neo4j, граф соавторства по публикациям | :8002 |
+| БД | PostgreSQL 16 | — |
+| Инфраструктура | Docker Compose | — |
+
+ML-сервис подключается опционально — при недоступности Django автоматически переключается на keyword-fallback.
+
+Frontend использует Django ORM напрямую и не зависит от REST API — два независимых механизма работают поверх одной базы данных.
+
+---
+
+## Артефакты
 | Файл | Назначение |
 |------|-----------|
 | `development-artefacts/DEVLOG.md` | Журнал разработки — что и когда было сделано |
