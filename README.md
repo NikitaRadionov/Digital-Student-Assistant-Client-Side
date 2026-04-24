@@ -1,8 +1,6 @@
 # Digital-Student-Assistant
 
-**Цифровой Ассистент Студента** — рекомендательная система студенческих проектов НИУ ВШЭ.
-
-![CI](https://github.com/krevetka-is-afk/Digital-Student-Assistant/actions/workflows/ci.yml/badge.svg)
+**Цифровой Ассистент Студента** — платформа студенческих проектов НИУ ВШЭ.
 
 ---
 
@@ -110,67 +108,7 @@ src/web/
 
 ---
 
-## Архитектура
-
-| Компонент | Стек | Порт |
-|-----------|------|------|
-| SSR Frontend + DRF API | Django, HTMX 1.9, Tailwind CSS v2 | :8000 |
-| ML-сервис | FastAPI, keyword-heuristic (готов к подключению sentence-transformers) | :8001 |
-| Graph-сервис | FastAPI + Neo4j, граф соавторства по публикациям | :8002 |
-| БД | PostgreSQL 16 | — |
-| Инфраструктура | Docker Compose | — |
-
-ML-сервис подключается опционально — при недоступности Django автоматически переключается на keyword-fallback.
-
-Frontend использует Django ORM напрямую и не зависит от REST API — два независимых механизма работают поверх одной базы данных.
-
----
-
-## Запуск
-
-### Django (локально)
-
-```bash
-cd src/web/
-cp .env.example .env
-uv sync --group dev
-uv run python manage.py migrate
-uv run python manage.py runserver --settings=config.settings.dev
-```
-
-- Главная: `http://127.0.0.1:8000/`
-- Проекты: `http://127.0.0.1:8000/projects/`
-
-### ML-сервис (опционально)
-
-```bash
-cd src/ml/
-uv sync
-uv run uvicorn app.main:app --port 8001 --reload
-```
-
-### Docker (всё сразу)
-
-```bash
-docker compose -f infra/docker-compose.yml --profile dev up --build
-```
-
----
-
-## Тесты
-
-```bash
-cd src/web
-uv run pytest                          # все тесты
-uv run pytest apps/frontend/tests/    # frontend-views
-uv run pytest apps/recs/tests/        # ML-gateway
-```
-
-Покрытие frontend-тестов: каталог, закладки, инициативные проекты, профиль, редиректы, права доступа, защита от анонимного доступа, валидация форм.
-
----
-
-## Документация проекта
+## Артефакты
 
 | Файл | Назначение |
 |------|-----------|
@@ -180,8 +118,3 @@ uv run pytest apps/recs/tests/        # ML-gateway
 | `development-artefacts/BPMN diagram.bpmn` | BPMN-диаграмма бизнес-процессов |
 
 ---
-
-## Issues
-
-1. [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml)
-2. [Feature request](.github/ISSUE_TEMPLATE/feature.yml)
