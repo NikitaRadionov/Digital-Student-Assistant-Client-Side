@@ -26,10 +26,15 @@ from .cpprp import (
     cpprp_deadline_toggle,
     cpprp_export_applications,
     cpprp_export_projects,
+    cpprp_external_allowlist_bulk_add,
+    cpprp_external_allowlist_toggle,
+    cpprp_external_request_approve,
+    cpprp_external_request_reject,
     cpprp_template_create,
     cpprp_template_delete,
     cpprp_template_toggle,
 )
+from .legal import personal_data_consent_view, privacy_policy_view
 from .moderation import moderate_project_decide, moderation_list
 from .profile import profile_view
 from .projects import (
@@ -78,11 +83,18 @@ __all__ = [
     "cpprp_deadline_create",
     "cpprp_deadline_toggle",
     "cpprp_deadline_delete",
+    "cpprp_external_allowlist_bulk_add",
+    "cpprp_external_allowlist_toggle",
     "cpprp_template_create",
     "cpprp_template_toggle",
     "cpprp_template_delete",
     "cpprp_export_projects",
     "cpprp_export_applications",
+    "cpprp_external_request_approve",
+    "cpprp_external_request_reject",
+    # legal
+    "privacy_policy_view",
+    "personal_data_consent_view",
     # moderation
     "moderation_list",
     "moderate_project_decide",

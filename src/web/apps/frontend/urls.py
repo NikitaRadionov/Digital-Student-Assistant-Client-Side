@@ -5,6 +5,10 @@ from . import views
 app_name = "frontend"
 
 urlpatterns = [
+    # Legal
+    path("legal/privacy/", views.privacy_policy_view, name="privacy_policy"),
+    path("legal/consent/", views.personal_data_consent_view, name="personal_data_consent"),
+
     # Auth
     path("auth/", views.auth_view, name="auth"),
     path("auth/verify/", views.verify_email_view, name="verify_email"),
@@ -90,6 +94,26 @@ urlpatterns = [
         "cpprp/templates/<int:pk>/delete/",
         views.cpprp_template_delete,
         name="cpprp_template_delete"
+    ),
+    path(
+        "cpprp/external-access/allow/",
+        views.cpprp_external_allowlist_bulk_add,
+        name="cpprp_external_allowlist_bulk_add",
+    ),
+    path(
+        "cpprp/external-access/allowlist/<int:pk>/toggle/",
+        views.cpprp_external_allowlist_toggle,
+        name="cpprp_external_allowlist_toggle",
+    ),
+    path(
+        "cpprp/external-access/requests/<int:pk>/approve/",
+        views.cpprp_external_request_approve,
+        name="cpprp_external_request_approve",
+    ),
+    path(
+        "cpprp/external-access/requests/<int:pk>/reject/",
+        views.cpprp_external_request_reject,
+        name="cpprp_external_request_reject",
     ),
     path("cpprp/export/projects/", views.cpprp_export_projects, name="cpprp_export_projects"),
     path(
