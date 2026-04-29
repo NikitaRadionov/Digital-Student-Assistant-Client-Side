@@ -17,8 +17,8 @@ from .projects import PAGE_SIZE
 
 def _project_accepts_applications(project: Project) -> bool:
     return (
-        project.status == ProjectStatus.PUBLISHED
-        and project.accepted_participants_count < project.team_size
+            project.status == ProjectStatus.PUBLISHED
+            and project.accepted_participants_count < project.team_size
     )
 
 
@@ -48,10 +48,10 @@ def apply_to_project(request, pk):
         )
 
     ctx = {
-        "project":           project,
+        "project": project,
         "application_status": existing.status,
         "ApplicationStatus": ApplicationStatus,
-        "ProjectStatus":     ProjectStatus,
+        "ProjectStatus": ProjectStatus,
     }
     return render(request, "frontend/partials/apply_button.html", ctx)
 
@@ -90,7 +90,7 @@ def submit_application(request, pk):
         applicant=request.user,
         defaults={
             "motivation": motivation,
-            "status":     ApplicationStatus.SUBMITTED,
+            "status": ApplicationStatus.SUBMITTED,
         },
     )
 
@@ -105,19 +105,19 @@ def submit_application(request, pk):
 
     if source == "card":
         ctx = {
-            "project":            project,
+            "project": project,
             "application_status": application.status,
-            "ApplicationStatus":  ApplicationStatus,
-            "ProjectStatus":      ProjectStatus,
+            "ApplicationStatus": ApplicationStatus,
+            "ProjectStatus": ProjectStatus,
         }
         response = render(request, "frontend/partials/apply_button.html", ctx)
     else:
         ctx = {
-            "project":           project,
-            "application":       application,
-            "is_owner":          False,
+            "project": project,
+            "application": application,
+            "is_owner": False,
             "ApplicationStatus": ApplicationStatus,
-            "ProjectStatus":     ProjectStatus,
+            "ProjectStatus": ProjectStatus,
         }
         response = render(request, "frontend/partials/apply_action_detail.html", ctx)
 
@@ -149,7 +149,7 @@ def project_applications(request, pk):
         raise Http404
 
     status_filter = request.GET.get("status", "").strip()
-    page_number   = request.GET.get("page", 1)
+    page_number = request.GET.get("page", 1)
 
     queryset = (
         Application.objects
@@ -162,24 +162,24 @@ def project_applications(request, pk):
         queryset = queryset.filter(status=status_filter)
 
     paginator = Paginator(queryset, PAGE_SIZE)
-    page_obj  = paginator.get_page(page_number)
+    page_obj = paginator.get_page(page_number)
 
     base_qs = Application.objects.filter(project=project)
-    counts  = {
+    counts = {
         "submitted": base_qs.filter(status=ApplicationStatus.SUBMITTED).count(),
-        "accepted":  base_qs.filter(status=ApplicationStatus.ACCEPTED).count(),
-        "rejected":  base_qs.filter(status=ApplicationStatus.REJECTED).count(),
+        "accepted": base_qs.filter(status=ApplicationStatus.ACCEPTED).count(),
+        "rejected": base_qs.filter(status=ApplicationStatus.REJECTED).count(),
     }
 
     context = {
-        "project":           project,
-        "page_obj":          page_obj,
-        "status_filter":     status_filter,
+        "project": project,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
         "ApplicationStatus": ApplicationStatus,
-        "ProjectStatus":     ProjectStatus,
-        "counts":            counts,
-        "total_count":       sum(counts.values()),
-        "spots_left":        max(0, project.team_size - project.accepted_participants_count),
+        "ProjectStatus": ProjectStatus,
+        "counts": counts,
+        "total_count": sum(counts.values()),
+        "spots_left": max(0, project.team_size - project.accepted_participants_count),
     }
     return render(request, "frontend/project_applications.html", context)
 
@@ -201,7 +201,7 @@ def review_application_view(request, pk):
         pk=pk,
     )
     decision = request.POST.get("decision", "").strip()
-    comment  = request.POST.get("comment", "").strip()
+    comment = request.POST.get("comment", "").strip()
 
     try:
         review_application(application, request.user, decision, comment)
@@ -271,6 +271,17 @@ def edit_application(request, pk):
 
     if request.method == "POST":
         motivation = request.POST.get("motivation", "").strip()
+        if motivation and len(motivation) < 30:
+            messages.error(
+                request,
+                "Мотивация слишком короткая — \
+                    опишите свой опыт и интерес к проекту (минимум 30 символов).",
+            )
+            return render(
+                request,
+                "frontend/edit_application.html",
+                {"application": application, "project": application.project},
+            )
         application.motivation = motivation
         application.save(update_fields=["motivation"])
         messages.success(request, "Мотивация обновлена.")

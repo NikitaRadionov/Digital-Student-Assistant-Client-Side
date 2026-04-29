@@ -1,3 +1,5 @@
+import re
+
 from apps.applications.models import Application
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.projects.normalization import normalize_technology_tags
@@ -9,8 +11,13 @@ from django.shortcuts import redirect, render
 # Field length limits
 _NAME_MAX = 100
 _BIO_MAX = 500
+_BIO_MIN = 10
 _INTERESTS_MAX = 20
-_INTEREST_ITEM_MAX = 100
+_INTEREST_ITEM_MIN = 1
+_INTEREST_ITEM_MAX = 50
+
+# Tag must start with letter/digit and contain only safe chars
+_TAG_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9 \-\.+#_]*$")
 
 
 def _parse_interests(raw: str) -> list[str]:
@@ -39,14 +46,33 @@ def profile_view(request):
         # --- Validate ---
         if len(full_name) > _NAME_MAX:
             profile_errors["full_name"] = f"Имя не может превышать {_NAME_MAX} символов."
-        if len(bio) > _BIO_MAX:
+
+        if bio and len(bio) < _BIO_MIN:
+            profile_errors["bio"] = (
+                f"Слишком коротко — расскажите о себе хотя бы в {_BIO_MIN} символах."
+            )
+        elif len(bio) > _BIO_MAX:
             profile_errors["bio"] = f"Описание не может превышать {_BIO_MAX} символов."
 
         raw_interests = _parse_interests(interests_raw)
-        too_long_interests = [t for t in raw_interests if len(t) > _INTEREST_ITEM_MAX]
-        if too_long_interests:
+        short_interests = [t for t in raw_interests if len(t) < _INTEREST_ITEM_MIN]
+        long_interests = [t for t in raw_interests if len(t) > _INTEREST_ITEM_MAX]
+        invalid_interests = [t for t in raw_interests if not _TAG_RE.match(t)]
+
+        if short_interests:
             profile_errors["interests"] = (
-                f"Каждый интерес не может превышать {_INTEREST_ITEM_MAX} символов."
+                f"Слишком короткий тег: «{short_interests[0]}». \
+                    Минимум {_INTEREST_ITEM_MIN} символ(a)."
+            )
+        elif long_interests:
+            profile_errors["interests"] = (
+                f"Тег слишком длинный: «{long_interests[0][:20]}…». \
+                    Максимум {_INTEREST_ITEM_MAX} символов."
+            )
+        elif invalid_interests:
+            profile_errors["interests"] = (
+                f"Недопустимый тег: «{invalid_interests[0]}». "
+                "Используйте буквы, цифры, дефис, точку, +, #."
             )
         elif len(raw_interests) > _INTERESTS_MAX:
             profile_errors["interests"] = f"Максимум {_INTERESTS_MAX} интересов."
