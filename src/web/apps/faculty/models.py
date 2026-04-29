@@ -45,7 +45,7 @@ class FacultyPerson(models.Model):
         ]
 
     def __str__(self) -> str:
-        return self.full_name
+        return str(self.full_name)
 
 
 class FacultyPublication(models.Model):
@@ -66,7 +66,7 @@ class FacultyPublication(models.Model):
         ordering = ["-year", "title"]
 
     def __str__(self) -> str:
-        return self.title
+        return str(self.title)
 
 
 class FacultyAuthorship(models.Model):
@@ -114,7 +114,7 @@ class FacultyCourse(models.Model):
         ordering = ["person_id", "-academic_year", "title"]
 
     def __str__(self) -> str:
-        return self.title
+        return str(self.title)
 
 
 class FacultySyncState(models.Model):
@@ -131,7 +131,7 @@ class FacultySyncState(models.Model):
         ordering = ["resource"]
 
     def __str__(self) -> str:
-        return self.resource
+        return str(self.resource)
 
 
 class ProjectFacultyMatch(models.Model):
@@ -171,4 +171,4 @@ class ProjectFacultyMatch(models.Model):
         ordering = ["project_id"]
 
     def __str__(self) -> str:
-        return f"Project {self.project_id}: {self.status}"
+        return f"Project {self.pk}: {self.status}"

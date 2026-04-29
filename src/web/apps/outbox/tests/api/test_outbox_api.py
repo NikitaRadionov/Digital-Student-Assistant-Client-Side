@@ -269,8 +269,12 @@ def test_snapshot_endpoint_includes_faculty_publication_authorships():
     assert response.status_code == 200
     body = response.json()
     assert body["resources"] == ["faculty_publications"]
-    assert body["faculty_publications"][0]["source_publication_id"] == f"pub-{token}"
-    assert body["faculty_publications"][0]["authors"] == [
+    publication_payload = next(
+        item
+        for item in body["faculty_publications"]
+        if item["source_publication_id"] == f"pub-{token}"
+    )
+    assert publication_payload["authors"] == [
         {
             "person_source_key": f"hse:{token}",
             "position": 1,

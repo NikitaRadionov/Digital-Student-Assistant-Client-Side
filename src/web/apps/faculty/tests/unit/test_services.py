@@ -29,18 +29,23 @@ def _person_payload(**overrides):
 
 
 def test_upsert_person_emits_event_only_when_hash_changes():
-    payload = _person_payload(person_id=1001)
+    token = uuid4().hex[:8]
+    payload = _person_payload(person_id=token)
 
     person, changed = upsert_person(payload, seen_at=timezone.now())
+    event_qs = OutboxEvent.objects.filter(
+        event_type="faculty.person.changed",
+        aggregate_id=f"hse:{token}",
+    )
 
     assert changed is True
-    assert person.source_key == "hse:1001"
-    assert OutboxEvent.objects.filter(event_type="faculty.person.changed").count() == 1
+    assert person.source_key == f"hse:{token}"
+    assert event_qs.count() == 1
 
     _, changed_again = upsert_person(payload, seen_at=timezone.now())
 
     assert changed_again is False
-    assert OutboxEvent.objects.filter(event_type="faculty.person.changed").count() == 1
+    assert event_qs.count() == 1
 
 
 def test_resolve_project_faculty_match_confirms_email_exact():
@@ -72,6 +77,7 @@ def test_resolve_project_faculty_match_confirms_email_exact():
     assert changed is True
     assert match.status == FacultyMatchStatus.CONFIRMED
     assert match.match_strategy == "email_exact"
+    assert match.faculty_person is not None
     assert match.faculty_person.source_key == f"hse:email-{token}"
 
 
