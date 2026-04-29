@@ -11,22 +11,32 @@ Provides a unified tabbed interface for:
 
 import csv
 import logging
+import re
 
 from apps.account.models import DeadlineAudience, DocumentTemplate, PlatformDeadline
 from apps.applications.models import Application, ApplicationStatus
 from apps.frontend.decorators import moderator_required
 from apps.projects.models import Project, ProjectStatus
+from apps.users.models import (
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    ExternalAccessRequestStatus,
+    UserRole,
+    normalize_email,
+)
 from django import forms as dj_forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 logger = logging.getLogger(__name__)
 
 _APPS_PAGE_SIZE = 20
+_EXTERNAL_EMAIL_SPLIT_RE = re.compile(r"[\s,;]+")
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +88,30 @@ class TemplateForm(dj_forms.Form):
     is_active = dj_forms.BooleanField(required=False, initial=True)
 
 
+class ExternalAllowlistBulkForm(dj_forms.Form):
+    emails = dj_forms.CharField(
+        widget=dj_forms.Textarea,
+        error_messages={"required": "Укажите хотя бы один email."},
+    )
+    allowed_role = dj_forms.ChoiceField(
+        choices=[(UserRole.CUSTOMER, "Customer")],
+        initial=UserRole.CUSTOMER,
+    )
+    note = dj_forms.CharField(required=False, max_length=255)
+
+
+def _extract_external_email_list(raw: str) -> list[str]:
+    values = []
+    seen: set[str] = set()
+    for part in _EXTERNAL_EMAIL_SPLIT_RE.split(raw or ""):
+        email = normalize_email(part)
+        if not email or email in seen:
+            continue
+        seen.add(email)
+        values.append(email)
+    return values
+
+
 # ---------------------------------------------------------------------------
 # Dashboard (main view)
 # ---------------------------------------------------------------------------
@@ -124,6 +158,17 @@ def cpprp_dashboard(request):
     # ── Templates tab ────────────────────────────────────────────────────────
     templates = list(DocumentTemplate.objects.order_by("title"))
     template_form = TemplateForm()
+    external_pending_requests = list(
+        ExternalAccessRequest.objects.filter(status=ExternalAccessRequestStatus.PENDING)
+        .order_by("created_at")
+    )
+    external_recent_requests = list(
+        ExternalAccessRequest.objects.select_related("reviewed_by").order_by("-updated_at")[:20]
+    )
+    external_allowlist = list(
+        ExternalAccessAllowlist.objects.select_related("approved_by").order_by("email")[:50]
+    )
+    external_allowlist_form = ExternalAllowlistBulkForm()
 
     context = {
         "project_counts": project_counts,
@@ -134,9 +179,14 @@ def cpprp_dashboard(request):
         "deadline_form": deadline_form,
         "templates": templates,
         "template_form": template_form,
+        "external_pending_requests": external_pending_requests,
+        "external_recent_requests": external_recent_requests,
+        "external_allowlist": external_allowlist,
+        "external_allowlist_form": external_allowlist_form,
         "ApplicationStatus": ApplicationStatus,
         "ProjectStatus": ProjectStatus,
         "DeadlineAudience": DeadlineAudience,
+        "ExternalAccessRequestStatus": ExternalAccessRequestStatus,
     }
     return render(request, "frontend/cpprp_dashboard.html", context)
 
@@ -296,3 +346,112 @@ def cpprp_export_applications(request):
             a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "",
         ])
     return response
+
+
+@require_POST
+@login_required(login_url="/auth/")
+@moderator_required
+def cpprp_external_allowlist_bulk_add(request):
+    form = ExternalAllowlistBulkForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            messages.error(request, f"{field}: {errs[0]}")
+        return redirect("/cpprp/?tab=external-access")
+
+    cleaned = form.cleaned_data
+    emails = _extract_external_email_list(cleaned["emails"])
+    if not emails:
+        messages.error(request, "Не удалось извлечь ни одного корректного email.")
+        return redirect("/cpprp/?tab=external-access")
+
+    created_count = 0
+    updated_count = 0
+    for email in emails:
+        entry, created = ExternalAccessAllowlist.objects.get_or_create(
+            email=email,
+            defaults={
+                "allowed_role": cleaned["allowed_role"],
+                "note": cleaned.get("note", ""),
+                "approved_by": request.user,
+                "is_active": True,
+            },
+        )
+        if created:
+            created_count += 1
+            continue
+        entry.allowed_role = cleaned["allowed_role"]
+        entry.note = cleaned.get("note", "")
+        entry.approved_by = request.user
+        entry.is_active = True
+        entry.save(update_fields=["allowed_role", "note", "approved_by", "is_active", "updated_at"])
+        updated_count += 1
+
+    messages.success(
+        request,
+        f"Список внешних почт обновлён: создано {created_count}, обновлено {updated_count}.",
+    )
+    return redirect("/cpprp/?tab=external-access")
+
+
+@require_POST
+@login_required(login_url="/auth/")
+@moderator_required
+def cpprp_external_request_approve(request, pk):
+    access_request = get_object_or_404(ExternalAccessRequest, pk=pk)
+    entry, _ = ExternalAccessAllowlist.objects.get_or_create(
+        email=access_request.email,
+        defaults={
+            "allowed_role": access_request.requested_role,
+            "approved_by": request.user,
+            "note": "Approved from external access request.",
+            "is_active": True,
+        },
+    )
+    entry.allowed_role = access_request.requested_role
+    entry.approved_by = request.user
+    entry.is_active = True
+    if not entry.note:
+        entry.note = "Approved from external access request."
+    entry.save(update_fields=["allowed_role", "approved_by", "is_active", "note", "updated_at"])
+
+    access_request.status = ExternalAccessRequestStatus.APPROVED
+    access_request.reviewed_by = request.user
+    access_request.reviewed_at = timezone.now()
+    access_request.decision_note = "Approved and added to allowlist."
+    access_request.save(
+        update_fields=["status", "reviewed_by", "reviewed_at", "decision_note", "updated_at"]
+    )
+    messages.success(
+        request,
+        f"Почта {access_request.email} одобрена и добавлена в allowlist.",
+    )
+    return redirect("/cpprp/?tab=external-access")
+
+
+@require_POST
+@login_required(login_url="/auth/")
+@moderator_required
+def cpprp_external_request_reject(request, pk):
+    access_request = get_object_or_404(ExternalAccessRequest, pk=pk)
+    access_request.status = ExternalAccessRequestStatus.REJECTED
+    access_request.reviewed_by = request.user
+    access_request.reviewed_at = timezone.now()
+    access_request.decision_note = "Rejected by moderator."
+    access_request.save(
+        update_fields=["status", "reviewed_by", "reviewed_at", "decision_note", "updated_at"]
+    )
+    messages.success(request, f"Заявка {access_request.email} отклонена.")
+    return redirect("/cpprp/?tab=external-access")
+
+
+@require_POST
+@login_required(login_url="/auth/")
+@moderator_required
+def cpprp_external_allowlist_toggle(request, pk):
+    entry = get_object_or_404(ExternalAccessAllowlist, pk=pk)
+    entry.is_active = not entry.is_active
+    entry.approved_by = request.user
+    entry.save(update_fields=["is_active", "approved_by", "updated_at"])
+    state = "активирована" if entry.is_active else "деактивирована"
+    messages.success(request, f"Внешняя почта {entry.email} {state}.")
+    return redirect("/cpprp/?tab=external-access")

@@ -7,7 +7,15 @@ from apps.users.email_verification import (
     resend_signup_code,
     verify_signup_code,
 )
-from apps.users.models import UserProfile, UserRole
+from apps.users.models import (
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    ExternalAccessRequestStatus,
+    UserProfile,
+    UserRole,
+    normalize_email,
+)
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import (
     authenticate,
@@ -37,6 +45,63 @@ def _check_email_fmt(email: str) -> bool:
         return True
     except ValidationError:
         return False
+
+
+def _email_domain(email: str) -> str:
+    normalized = normalize_email(email)
+    _, _, domain = normalized.partition("@")
+    return domain
+
+
+def _is_corporate_email(email: str) -> bool:
+    domain = _email_domain(email)
+    return bool(domain) and domain in {
+        item.strip().lower() for item in getattr(settings, "ALLOWED_CORPORATE_EMAIL_DOMAINS", [])
+    }
+
+
+def _external_email_is_allowlisted(email: str, role: str) -> bool:
+    normalized = normalize_email(email)
+    return ExternalAccessAllowlist.objects.filter(
+        email=normalized,
+        allowed_role=role,
+        is_active=True,
+    ).exists()
+
+
+def _create_or_refresh_external_access_request(
+        *,
+        email: str,
+        full_name: str,
+        requested_role: str
+) -> None:
+    normalized = normalize_email(email)
+    request_obj = ExternalAccessRequest.objects.filter(email=normalized).first()
+    if request_obj is None:
+        ExternalAccessRequest.objects.create(
+            email=normalized,
+            full_name=full_name,
+            requested_role=requested_role,
+        )
+        return
+
+    request_obj.full_name = full_name
+    request_obj.requested_role = requested_role
+    request_obj.status = ExternalAccessRequestStatus.PENDING
+    request_obj.decision_note = ""
+    request_obj.reviewed_by = None
+    request_obj.reviewed_at = None
+    request_obj.save(
+        update_fields=[
+            "full_name",
+            "requested_role",
+            "status",
+            "decision_note",
+            "reviewed_by",
+            "reviewed_at",
+            "updated_at",
+        ]
+    )
 
 
 def _safe_redirect_target(request, raw_next_url: str) -> str:
@@ -123,9 +188,9 @@ def auth_view(request):
                     return redirect(safe_next)
                 else:
                     if (
-                        user_obj is not None
-                        and is_user_pending_email_verification(user_obj)
-                        and user_obj.check_password(password)
+                            user_obj is not None
+                            and is_user_pending_email_verification(user_obj)
+                            and user_obj.check_password(password)
                     ):
                         login_requires_email_verification = True
                         login_errors["general"] = "Подтвердите email, чтобы войти."
@@ -139,8 +204,8 @@ def auth_view(request):
             reg_name = request.POST.get("name", "").strip()
             reg_role = request.POST.get("role", UserRole.STUDENT)
             reg_personal_data_consent = (
-                request.POST.get("personal_data_consent", "").strip().lower()
-                in _CONSENT_ACCEPTED_VALUES
+                    request.POST.get("personal_data_consent", "").strip().lower()
+                    in _CONSENT_ACCEPTED_VALUES
             )
 
             if not reg_email:
@@ -161,8 +226,38 @@ def auth_view(request):
                 register_errors["personal_data_consent"] = (
                     "Для регистрации необходимо согласие на обработку персональных данных."
                 )
+            is_corporate_email = _is_corporate_email(reg_email)
+            if (
+                    reg_role == UserRole.STUDENT
+                    and reg_email
+                    and "email" not in register_errors
+                    and not is_corporate_email
+            ):
+                register_errors["email"] = (
+                    "Регистрация студентов доступна только для корпоративных адресов "
+                    "@edu.hse.ru."
+                )
+
+            external_customer_needs_moderation = (
+                    reg_role == UserRole.CUSTOMER
+                    and reg_email
+                    and not is_corporate_email
+                    and not _external_email_is_allowlisted(reg_email, reg_role)
+            )
 
             if not register_errors:
+                if external_customer_needs_moderation:
+                    _create_or_refresh_external_access_request(
+                        email=reg_email,
+                        full_name=reg_name,
+                        requested_role=reg_role,
+                    )
+                    messages.info(
+                        request,
+                        "Заявка на внешний доступ отправлена. После одобрения сотрудником ЦППРП "
+                        "вы сможете завершить регистрацию с этой почтой.",
+                    )
+                    return redirect("frontend:auth")
                 User = get_user_model()
                 if User.objects.filter(email__iexact=reg_email).exists():
                     register_errors["email"] = "Пользователь с таким email уже существует."

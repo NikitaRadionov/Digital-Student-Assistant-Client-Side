@@ -1,3 +1,5 @@
+from typing import cast
+
 from apps.projects.models import Technology
 from apps.projects.normalization import normalize_technology_tags
 from django.conf import settings
@@ -11,6 +13,10 @@ class UserRole(models.TextChoices):
     STUDENT = "student", "Student"
     CUSTOMER = "customer", "Customer"
     CPPRP = "cpprp", "CPPRP"
+
+
+def normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
 
 
 class UserProfile(models.Model):
@@ -199,3 +205,125 @@ class EmailVerificationCode(models.Model):
     @property
     def is_expired(self) -> bool:
         return self.expires_at <= timezone.now()
+
+
+class ExternalAccessRequestStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
+class ExternalAccessAllowlist(models.Model):
+    email = models.EmailField(
+        unique=True,
+        db_index=True,
+        verbose_name="Email",
+        help_text="External email address allowed to register.",
+    )
+    allowed_role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.CUSTOMER,
+        verbose_name="Allowed role",
+        help_text="Role that can be used during registration for this email.",
+    )
+    note = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Note",
+        help_text="Optional moderation note or source of approval.",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="approved_external_access_emails",
+        null=True,
+        blank=True,
+        verbose_name="Approved by",
+        help_text="Moderator who approved this external email.",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="Active",
+        help_text="Whether this email is currently allowed to register.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["email"]
+        verbose_name = "External access allowlist entry"
+        verbose_name_plural = "External access allowlist"
+
+    def __str__(self) -> str:
+        return cast(str, self.email)
+
+    def save(self, *args, **kwargs):
+        setattr(self, "email", normalize_email(cast(str, self.email)))
+        super().save(*args, **kwargs)
+
+
+class ExternalAccessRequest(models.Model):
+    email = models.EmailField(
+        unique=True,
+        db_index=True,
+        verbose_name="Email",
+        help_text="External email address requesting access.",
+    )
+    full_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Full name",
+        help_text="Name provided during registration request.",
+    )
+    requested_role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.CUSTOMER,
+        verbose_name="Requested role",
+        help_text="Role requested by the external user.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ExternalAccessRequestStatus.choices,
+        default=ExternalAccessRequestStatus.PENDING,
+        db_index=True,
+        verbose_name="Status",
+        help_text="Current moderation status of the access request.",
+    )
+    decision_note = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Decision note",
+        help_text="Optional moderation note.",
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_external_access_requests",
+        null=True,
+        blank=True,
+        verbose_name="Reviewed by",
+        help_text="Moderator who made the latest decision.",
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Reviewed at",
+        help_text="Timestamp of the latest moderation decision.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "External access request"
+        verbose_name_plural = "External access requests"
+
+    def __str__(self) -> str:
+        return cast(str, self.email)
+
+    def save(self, *args, **kwargs):
+        setattr(self, "email", normalize_email(cast(str, self.email)))
+        super().save(*args, **kwargs)

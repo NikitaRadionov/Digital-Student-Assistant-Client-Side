@@ -95,6 +95,26 @@ urlpatterns = [
         views.cpprp_template_delete,
         name="cpprp_template_delete"
     ),
+    path(
+        "cpprp/external-access/allow/",
+        views.cpprp_external_allowlist_bulk_add,
+        name="cpprp_external_allowlist_bulk_add",
+    ),
+    path(
+        "cpprp/external-access/allowlist/<int:pk>/toggle/",
+        views.cpprp_external_allowlist_toggle,
+        name="cpprp_external_allowlist_toggle",
+    ),
+    path(
+        "cpprp/external-access/requests/<int:pk>/approve/",
+        views.cpprp_external_request_approve,
+        name="cpprp_external_request_approve",
+    ),
+    path(
+        "cpprp/external-access/requests/<int:pk>/reject/",
+        views.cpprp_external_request_reject,
+        name="cpprp_external_request_reject",
+    ),
     path("cpprp/export/projects/", views.cpprp_export_projects, name="cpprp_export_projects"),
     path(
         "cpprp/export/applications/",

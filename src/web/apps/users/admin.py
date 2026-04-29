@@ -11,7 +11,12 @@ from django.contrib.auth.forms import UserChangeForm as DjangoUserChangeForm
 from django.contrib.auth.forms import UserCreationForm as DjangoUserCreationForm
 from django.contrib.auth.models import Group, User
 
-from .models import EmailVerificationCode, UserProfile
+from .models import (
+    EmailVerificationCode,
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    UserProfile,
+)
 
 try:  # pragma: no cover - exercised when django-unfold is installed in CI/deploy.
     unfold_forms = import_module("unfold.forms")
@@ -22,7 +27,6 @@ except ModuleNotFoundError:  # pragma: no cover - local offline fallback only.
     AdminPasswordChangeForm = DjangoAdminPasswordChangeForm
     UserChangeForm = DjangoUserChangeForm
     UserCreationForm = DjangoUserCreationForm
-
 
 for auth_model in (User, Group):
     if auth_model in admin.site._registry:
@@ -63,3 +67,17 @@ class EmailVerificationCodeAdmin(UnfoldModelAdmin):
     list_filter = ("purpose", "sent_at", "expires_at", "consumed_at")
     search_fields = ("user__username", "user__email", "email")
     readonly_fields = ("code_hash", "sent_at", "consumed_at")
+
+
+@admin.register(ExternalAccessAllowlist)
+class ExternalAccessAllowlistAdmin(UnfoldModelAdmin):
+    list_display = ("email", "allowed_role", "is_active", "approved_by", "created_at")
+    list_filter = ("allowed_role", "is_active", "created_at")
+    search_fields = ("email", "note")
+
+
+@admin.register(ExternalAccessRequest)
+class ExternalAccessRequestAdmin(UnfoldModelAdmin):
+    list_display = ("email", "requested_role", "status", "reviewed_by", "created_at")
+    list_filter = ("requested_role", "status", "created_at")
+    search_fields = ("email", "full_name", "decision_note")

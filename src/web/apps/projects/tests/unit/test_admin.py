@@ -4,8 +4,20 @@ from unittest.mock import MagicMock
 from apps.base.admin_unfold import UnfoldModelAdmin
 from apps.projects.admin import ProjectAdmin, ProjectAdminForm
 from apps.projects.models import Project, ProjectStatus
-from apps.users.admin import EmailVerificationCodeAdmin, GroupAdmin, UserAdmin, UserProfileAdmin
-from apps.users.models import EmailVerificationCode, UserProfile
+from apps.users.admin import (
+    EmailVerificationCodeAdmin,
+    ExternalAccessAllowlistAdmin,
+    ExternalAccessRequestAdmin,
+    GroupAdmin,
+    UserAdmin,
+    UserProfileAdmin,
+)
+from apps.users.models import (
+    EmailVerificationCode,
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    UserProfile,
+)
 from django.contrib import admin
 from django.contrib.auth.models import Group, User
 
@@ -23,8 +35,12 @@ def test_project_registered_in_admin():
 def test_dsa_admins_use_unfold_base():
     assert isinstance(admin.site._registry[UserProfile], UserProfileAdmin)
     assert isinstance(admin.site._registry[EmailVerificationCode], EmailVerificationCodeAdmin)
+    assert isinstance(admin.site._registry[ExternalAccessAllowlist], ExternalAccessAllowlistAdmin)
+    assert isinstance(admin.site._registry[ExternalAccessRequest], ExternalAccessRequestAdmin)
     assert isinstance(admin.site._registry[UserProfile], UnfoldModelAdmin)
     assert isinstance(admin.site._registry[EmailVerificationCode], UnfoldModelAdmin)
+    assert isinstance(admin.site._registry[ExternalAccessAllowlist], UnfoldModelAdmin)
+    assert isinstance(admin.site._registry[ExternalAccessRequest], UnfoldModelAdmin)
 
 
 def test_standard_auth_admins_are_restyled():
