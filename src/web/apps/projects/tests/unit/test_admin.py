@@ -1,9 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 from apps.base.admin_unfold import UnfoldModelAdmin
 from apps.projects.admin import ProjectAdmin, ProjectAdminForm
-from apps.projects.models import Project, ProjectStatus
+from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.users.admin import (
     EmailVerificationCodeAdmin,
     ExternalAccessAllowlistAdmin,
@@ -20,10 +21,16 @@ from apps.users.models import (
 )
 from django.contrib import admin
 from django.contrib.auth.models import Group, User
+from django.test import RequestFactory
+from django.urls import reverse
 
 
 def _project_admin() -> ProjectAdmin:
     return admin.site._registry[Project]
+
+
+def _uid() -> str:
+    return uuid4().hex[:8]
 
 
 def test_project_registered_in_admin():
@@ -91,6 +98,7 @@ def test_project_admin_actions_registered():
 
     assert "publish_selected" in project_admin.actions
     assert "archive_selected" in project_admin.actions
+    assert "export_selected_as_csv" in project_admin.actions
 
 
 def test_project_admin_publish_action_updates_status():
@@ -129,3 +137,54 @@ def test_admin_site_access_is_staff_only():
 
     assert admin.site.has_permission(staff_request) is True
     assert admin.site.has_permission(non_staff_request) is False
+
+
+def test_project_admin_export_action_returns_csv():
+    owner = User.objects.create_user(
+        username=f"project-admin-owner-{_uid()}",
+        email=f"owner-{_uid()}@example.com",
+    )
+    project = Project.objects.create(
+        title="Exportable project",
+        description="Admin export test",
+        owner=owner,
+        status=ProjectStatus.PUBLISHED,
+        source_type=ProjectSourceType.MANUAL,
+        team_size=3,
+        accepted_participants_count=1,
+        education_program="SE",
+        study_course="3",
+    )
+    project_admin = _project_admin()
+    request = RequestFactory().get("/admin/projects/project/")
+
+    response = project_admin.export_selected_as_csv(request, Project.objects.filter(pk=project.pk))
+
+    content = response.content.decode("utf-8-sig")
+    assert response.status_code == 200
+    assert response["Content-Disposition"] == 'attachment; filename="projects-export.csv"'
+    assert "id,title,status,source_type,team_size,accepted_participants_count" in content
+    assert f"{project.pk},Exportable project,published,manual,3,1,SE,3," in content
+
+
+def test_project_admin_export_all_view_returns_csv():
+    owner = User.objects.create_user(
+        username=f"project-admin-owner-all-{_uid()}",
+        email=f"owner-all-{_uid()}@example.com",
+    )
+    project = Project.objects.create(
+        title="Export all project",
+        description="Admin export all test",
+        owner=owner,
+        status=ProjectStatus.PUBLISHED,
+        source_type=ProjectSourceType.MANUAL,
+    )
+    project_admin = _project_admin()
+    request = RequestFactory().get(reverse("admin:projects_project_export_all"))
+    request.user = SimpleNamespace(is_active=True, is_staff=True)
+
+    response = project_admin.export_all_as_csv_view(request)
+
+    content = response.content.decode("utf-8-sig")
+    assert response.status_code == 200
+    assert f"{project.pk},Export all project,published,manual," in content

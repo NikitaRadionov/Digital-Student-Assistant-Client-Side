@@ -1,6 +1,10 @@
+import csv
+
 from apps.base.admin_unfold import UnfoldModelAdmin
 from django import forms
 from django.contrib import admin
+from django.http import HttpResponse
+from django.urls import path
 
 from .models import EPP, Project, ProjectStatus, Technology, TechnologyStatus
 
@@ -26,7 +30,8 @@ class ProjectAdmin(UnfoldModelAdmin):
     autocomplete_fields = ("owner",)
     readonly_fields = ("created_at", "updated_at")
     list_per_page = 50
-    actions = ("publish_selected", "archive_selected")
+    actions = ("publish_selected", "archive_selected", "export_selected_as_csv")
+    change_list_template = "admin/projects/project/change_list.html"
     fieldsets = (
         (
             "Core information",
@@ -54,6 +59,20 @@ class ProjectAdmin(UnfoldModelAdmin):
         ("System fields", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "export-all/",
+                self.admin_site.admin_view(self.export_all_as_csv_view),
+                name="projects_project_export_all",
+            ),
+        ]
+        return custom_urls + urls
+
+    def export_all_as_csv_view(self, request):
+        return self.export_selected_as_csv(request, Project.objects.order_by("pk"))
+
     @admin.action(description="Publish selected projects")
     def publish_selected(self, request, queryset):
         updated = queryset.exclude(status=ProjectStatus.PUBLISHED).update(
@@ -67,6 +86,42 @@ class ProjectAdmin(UnfoldModelAdmin):
             status=ProjectStatus.ARCHIVED
         )
         self.message_user(request, f"Archived {updated} project(s).")
+
+    @admin.action(description="Export selected projects as CSV")
+    def export_selected_as_csv(self, request, queryset):
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="projects-export.csv"'
+        response.write("\ufeff")  # BOM for Excel UTF-8 compatibility
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "id",
+                "title",
+                "status",
+                "source_type",
+                "team_size",
+                "accepted_participants_count",
+                "education_program",
+                "study_course",
+                "created_at",
+            ]
+        )
+        for project in queryset.order_by("pk"):
+            writer.writerow(
+                [
+                    project.pk,
+                    project.title,
+                    project.status,
+                    project.source_type,
+                    project.team_size,
+                    project.accepted_participants_count,
+                    project.education_program,
+                    project.study_course,
+                    project.created_at.strftime("%Y-%m-%d %H:%M") if project.created_at else "",
+                ]
+            )
+        return response
 
 
 @admin.register(Technology)
