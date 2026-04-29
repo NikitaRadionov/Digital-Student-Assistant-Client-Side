@@ -12,8 +12,18 @@ class UserRole(models.TextChoices):
     values: ClassVar[list[str]]
 
 
+def normalize_email(email: str) -> str: ...
+
+
 class EmailVerificationPurpose(models.TextChoices):
     SIGNUP: ClassVar[str]
+    values: ClassVar[list[str]]
+
+
+class ExternalAccessRequestStatus(models.TextChoices):
+    PENDING: ClassVar[str]
+    APPROVED: ClassVar[str]
+    REJECTED: ClassVar[str]
     values: ClassVar[list[str]]
 
 
@@ -36,10 +46,15 @@ class UserProfile(models.Model):
 
     @property
     def is_email_verified(self) -> bool: ...
+
     def __str__(self) -> str: ...
+
     def save(self, *args: Any, **kwargs: Any) -> None: ...
+
     def sync_interest_technologies(self) -> None: ...
+
     def mark_email_verified(self, verified_at: datetime | None = None) -> None: ...
+
     def set_favorite_project_ids(self, project_ids: list[int]) -> None: ...
 
 
@@ -61,6 +76,50 @@ class EmailVerificationCode(models.Model):
 
     @property
     def is_consumed(self) -> bool: ...
+
     @property
     def is_expired(self) -> bool: ...
+
     def __str__(self) -> str: ...
+
+
+class ExternalAccessAllowlist(models.Model):
+    objects: ClassVar[models.Manager[ExternalAccessAllowlist]]
+    _meta: ClassVar[Any]
+
+    id: int
+    pk: int | None
+    email: str
+    allowed_role: str
+    note: str
+    approved_by_id: int | None
+    approved_by: Any
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    def __str__(self) -> str: ...
+
+    def save(self, *args: Any, **kwargs: Any) -> None: ...
+
+
+class ExternalAccessRequest(models.Model):
+    objects: ClassVar[models.Manager[ExternalAccessRequest]]
+    _meta: ClassVar[Any]
+
+    id: int
+    pk: int | None
+    email: str
+    full_name: str
+    requested_role: str
+    status: str
+    decision_note: str
+    reviewed_by_id: int | None
+    reviewed_by: Any
+    reviewed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    def __str__(self) -> str: ...
+
+    def save(self, *args: Any, **kwargs: Any) -> None: ...

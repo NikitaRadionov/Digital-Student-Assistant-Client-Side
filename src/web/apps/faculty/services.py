@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol, cast
 
 from apps.outbox.services import emit_event
 from apps.projects.models import Project
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -27,6 +28,13 @@ from .normalization import (
     source_key_for_person,
     stable_hash,
 )
+
+
+class _ProjectFacultySource(Protocol):
+    pk: int
+    supervisor_name: str
+    supervisor_email: str
+    supervisor_department: str
 
 
 @dataclass
@@ -85,6 +93,7 @@ def _schedule_event(
 
 
 def faculty_person_payload(person: FacultyPerson) -> dict[str, Any]:
+    updated_at = cast(datetime | None, person.updated_at)
     return {
         "source_key": person.source_key,
         "source_person_id": person.source_person_id,
@@ -101,11 +110,13 @@ def faculty_person_payload(person: FacultyPerson) -> dict[str, Any]:
         "emails": person.emails,
         "is_stale": person.is_stale,
         "source_hash": person.source_hash,
-        "updated_at": person.updated_at.isoformat() if person.updated_at else None,
+        "updated_at": updated_at.isoformat() if updated_at else None,
     }
 
 
 def faculty_publication_payload(publication: FacultyPublication) -> dict[str, Any]:
+    authorships = cast(models.Manager[FacultyAuthorship], publication.authorships)
+    created_at_source = publication.created_at_source
     authors = [
         {
             "person_source_key": authorship.person.source_key if authorship.person else None,
@@ -113,7 +124,7 @@ def faculty_publication_payload(publication: FacultyPublication) -> dict[str, An
             "display_name": authorship.display_name,
             "href": authorship.href,
         }
-        for authorship in publication.authorships.select_related("person").order_by("position")
+        for authorship in authorships.select_related("person").order_by("position")
     ]
     return {
         "source_publication_id": publication.source_publication_id,
@@ -122,9 +133,7 @@ def faculty_publication_payload(publication: FacultyPublication) -> dict[str, An
         "year": publication.year,
         "language": publication.language,
         "url": publication.url,
-        "created_at_source": (
-            publication.created_at_source.isoformat() if publication.created_at_source else None
-        ),
+        "created_at_source": created_at_source.isoformat() if created_at_source else None,
         "authors": authors,
         "source_hash": publication.source_hash,
     }
@@ -144,6 +153,7 @@ def faculty_course_payload(course: FacultyCourse) -> dict[str, Any]:
 
 
 def project_faculty_match_payload(match: ProjectFacultyMatch) -> dict[str, Any]:
+    matched_at = match.matched_at
     return {
         "project_id": str(match.project_id),
         "faculty_source_key": match.faculty_person.source_key if match.faculty_person else None,
@@ -154,7 +164,7 @@ def project_faculty_match_payload(match: ProjectFacultyMatch) -> dict[str, Any]:
         "supervisor_email": match.supervisor_email,
         "supervisor_department": match.supervisor_department,
         "candidate_person_ids": match.candidate_person_ids,
-        "matched_at": match.matched_at.isoformat() if match.matched_at else None,
+        "matched_at": matched_at.isoformat() if matched_at else None,
     }
 
 
@@ -376,9 +386,10 @@ def reconcile_project_faculty_matches() -> int:
 
 
 def resolve_project_faculty_match(project: Project) -> tuple[ProjectFacultyMatch, bool]:
-    supervisor_name = str(project.supervisor_name or "").strip()
-    supervisor_email = str(project.supervisor_email or "").strip().lower()
-    supervisor_department = str(project.supervisor_department or "").strip()
+    project_data = cast(_ProjectFacultySource, project)
+    supervisor_name = str(project_data.supervisor_name or "").strip()
+    supervisor_email = str(project_data.supervisor_email or "").strip().lower()
+    supervisor_department = str(project_data.supervisor_department or "").strip()
     normalized_name = normalize_text(supervisor_name)
     normalized_department = normalize_text(supervisor_department)
 

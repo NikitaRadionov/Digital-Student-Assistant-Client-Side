@@ -24,7 +24,7 @@ def _make_unverified_user(*, email: str = "pending@example.com"):
 def test_registration_sends_code_and_keeps_user_logged_out():
     client = Client()
     baseline = len(getattr(mail, "outbox", []))
-    email = f"new-student-{uuid4().hex[:8]}@example.com"
+    email = f"new-student-{uuid4().hex[:8]}@edu.hse.ru"
 
     response = client.post(
         reverse("frontend:auth"),
@@ -34,6 +34,7 @@ def test_registration_sends_code_and_keeps_user_logged_out():
             "password": "password123",
             "name": "New Student",
             "role": UserRole.STUDENT,
+            "personal_data_consent": "1",
         },
     )
 

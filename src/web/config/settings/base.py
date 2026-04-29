@@ -119,7 +119,6 @@ UNFOLD_APPS = [
 if find_spec("unfold") is None:
     UNFOLD_APPS = []
 
-
 INSTALLED_APPS = [
     *UNFOLD_APPS,
     "django.contrib.admin",
@@ -183,9 +182,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-
 DATABASES = database_from_env()
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -205,7 +202,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
@@ -216,7 +212,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
@@ -352,6 +347,10 @@ EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = env_int(
     60,
 )
 EMAIL_VERIFICATION_MAX_ATTEMPTS = env_int("EMAIL_VERIFICATION_MAX_ATTEMPTS", 5)
+ALLOWED_CORPORATE_EMAIL_DOMAINS = [
+    domain.lower()
+    for domain in env_list("ALLOWED_CORPORATE_EMAIL_DOMAINS", ["edu.hse.ru"])
+]
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Digital Student Assistant API",

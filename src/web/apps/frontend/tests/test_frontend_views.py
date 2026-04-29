@@ -9,7 +9,13 @@ from uuid import uuid4
 import pytest
 from apps.applications.models import Application, ApplicationStatus
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
-from apps.users.models import UserProfile, UserRole
+from apps.users.models import (
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    ExternalAccessRequestStatus,
+    UserProfile,
+    UserRole,
+)
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
@@ -214,6 +220,26 @@ def test_initiative_project_create_post_valid():
     assert "fastapi" in project.tech_tags
 
 
+def test_initiative_project_requires_consent_for_supervisor_data():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+
+    response = client.post(
+        reverse("frontend:initiative_project_create"),
+        {
+            "title": "My Initiative",
+            "description": "A detailed description of my project idea.",
+            "tech_tags_raw": "Python, FastAPI",
+            "team_size": "2",
+            "supervisor_name": "Иванов Иван Иванович",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "подтвердите наличие его согласия" in response.content.decode()
+
+
 def test_initiative_project_create_post_invalid_no_title():
     student = _make_student()
     client = Client()
@@ -246,6 +272,7 @@ def test_initiative_project_with_supervisor():
             "tech_tags_raw": "",
             "team_size": "1",
             "supervisor_name": "Иванов Иван Иванович",
+            "supervisor_personal_data_consent": "1",
         },
     )
 
@@ -797,11 +824,9 @@ def test_moderation_queue_shows_pending_projects():
     client.force_login(cpprp)
     response = client.get(reverse("frontend:moderation_list"))
     assert response.status_code == 200
-    content = response.content.decode()
-    # Pending project must be in the queue
-    assert pending_title in content
-    # Draft project must NOT appear in the moderation queue
-    assert draft_title not in content
+    queue_titles = {project.title for project in response.context["page_obj"].paginator.object_list}
+    assert pending_title in queue_titles
+    assert draft_title not in queue_titles
 
 
 # ---------------------------------------------------------------------------
@@ -853,7 +878,13 @@ def test_register_rejects_invalid_email():
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
-        {"tab": "register", "email": "sdfsdf", "password": "ValidPass1", "role": "student"},
+        {
+            "tab": "register",
+            "email": "sdfsdf",
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
     )
     assert response.status_code == 200
     content = response.content.decode()
@@ -866,7 +897,13 @@ def test_register_rejects_email_missing_domain():
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
-        {"tab": "register", "email": "user@", "password": "ValidPass1", "role": "student"},
+        {
+            "tab": "register",
+            "email": "user@",
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
     )
     assert response.status_code == 200
     assert "корректный email" in response.content.decode()
@@ -874,18 +911,20 @@ def test_register_rejects_email_missing_domain():
 
 def test_register_accepts_valid_email():
     uid = _uid()
+    email = f"valid_{uid}@edu.hse.ru"
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
         {
             "tab": "register",
-            "email": f"valid_{uid}@example.com",
+            "email": email,
             "password": "ValidPass1",
             "role": "student",
+            "personal_data_consent": "1",
         },
     )
     assert response.status_code == 302
-    assert User.objects.filter(email=f"valid_{uid}@example.com").exists()
+    assert User.objects.filter(email=email).exists()
 
 
 def test_register_rejects_short_password():
@@ -895,9 +934,10 @@ def test_register_rejects_short_password():
         reverse("frontend:auth"),
         {
             "tab": "register",
-            "email": f"u_{uid}@example.com",
+            "email": f"u_{uid}@edu.hse.ru",
             "password": "short",
             "role": "student",
+            "personal_data_consent": "1",
         },
     )
     assert response.status_code == 200
@@ -906,15 +946,100 @@ def test_register_rejects_short_password():
 
 def test_register_rejects_duplicate_email():
     uid = _uid()
-    email = f"dup_{uid}@example.com"
+    email = f"dup_{uid}@edu.hse.ru"
     User.objects.create_user(username=f"existing_{uid}", email=email, password="somepass1")
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
-        {"tab": "register", "email": email, "password": "ValidPass1", "role": "student"},
+        {
+            "tab": "register",
+            "email": email,
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
     )
     assert response.status_code == 200
     assert "уже существует" in response.content.decode()
+
+
+def test_register_requires_personal_data_consent():
+    uid = _uid()
+    client = Client()
+    response = client.post(
+        reverse("frontend:auth"),
+        {
+            "tab": "register",
+            "email": f"noconsent_{uid}@example.com",
+            "password": "ValidPass1",
+            "role": "student",
+        },
+    )
+    assert response.status_code == 200
+    assert "необходимо согласие" in response.content.decode()
+    assert not User.objects.filter(email=f"noconsent_{uid}@example.com").exists()
+
+
+def test_register_rejects_non_corporate_student_email():
+    uid = _uid()
+    client = Client()
+    response = client.post(
+        reverse("frontend:auth"),
+        {
+            "tab": "register",
+            "email": f"student_{uid}@gmail.com",
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
+    )
+    assert response.status_code == 200
+    assert "только для корпоративных адресов" in response.content.decode()
+    assert not User.objects.filter(email=f"student_{uid}@gmail.com").exists()
+
+
+def test_register_external_customer_creates_access_request():
+    uid = _uid()
+    email = f"external_{uid}@example.com"
+    client = Client()
+    response = client.post(
+        reverse("frontend:auth"),
+        {
+            "tab": "register",
+            "email": email,
+            "password": "ValidPass1",
+            "name": "External Teacher",
+            "role": "customer",
+            "personal_data_consent": "1",
+        },
+        follow=True,
+    )
+    assert response.status_code == 200
+    assert ExternalAccessRequest.objects.filter(email=email).exists()
+    request_obj = ExternalAccessRequest.objects.get(email=email)
+    assert request_obj.status == ExternalAccessRequestStatus.PENDING
+    assert not User.objects.filter(email=email).exists()
+
+
+def test_register_allowlisted_external_customer_is_created():
+    uid = _uid()
+    email = f"approved_{uid}@example.com"
+    ExternalAccessAllowlist.objects.create(email=email, allowed_role=UserRole.CUSTOMER)
+
+    client = Client()
+    response = client.post(
+        reverse("frontend:auth"),
+        {
+            "tab": "register",
+            "email": email,
+            "password": "ValidPass1",
+            "name": "Approved External",
+            "role": "customer",
+            "personal_data_consent": "1",
+        },
+    )
+    assert response.status_code == 302
+    assert User.objects.filter(email=email).exists()
 
 
 def test_login_rejects_invalid_email_format():
@@ -925,3 +1050,56 @@ def test_login_rejects_invalid_email_format():
     )
     assert response.status_code == 200
     assert "корректный email" in response.content.decode()
+
+
+def test_legal_pages_are_public():
+    client = Client()
+    privacy = client.get(reverse("frontend:privacy_policy"))
+    consent = client.get(reverse("frontend:personal_data_consent"))
+
+    assert privacy.status_code == 200
+    assert "Политика обработки персональных данных" in privacy.content.decode()
+    assert consent.status_code == 200
+    assert "Согласие на обработку персональных данных" in consent.content.decode()
+
+
+def test_cpprp_can_approve_external_access_request():
+    cpprp = _make_cpprp()
+    access_request = ExternalAccessRequest.objects.create(
+        email=f"pending-{_uid()}@example.com",
+        requested_role=UserRole.CUSTOMER,
+        full_name="Pending User",
+    )
+    client = Client()
+    client.force_login(cpprp)
+
+    response = client.post(
+        reverse("frontend:cpprp_external_request_approve", kwargs={"pk": access_request.pk}),
+    )
+
+    assert response.status_code == 302
+    access_request.refresh_from_db()
+    assert access_request.status == ExternalAccessRequestStatus.APPROVED
+    assert ExternalAccessAllowlist.objects.filter(
+        email=access_request.email,
+        is_active=True
+    ).exists()
+
+
+def test_cpprp_can_bulk_add_external_allowlist():
+    cpprp = _make_cpprp()
+    client = Client()
+    client.force_login(cpprp)
+
+    response = client.post(
+        reverse("frontend:cpprp_external_allowlist_bulk_add"),
+        {
+            "emails": "teacher1@example.com\nteacher2@example.com",
+            "allowed_role": UserRole.CUSTOMER,
+            "note": "Known invited teachers",
+        },
+    )
+
+    assert response.status_code == 302
+    assert ExternalAccessAllowlist.objects.filter(email="teacher1@example.com").exists()
+    assert ExternalAccessAllowlist.objects.filter(email="teacher2@example.com").exists()

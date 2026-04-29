@@ -207,6 +207,25 @@
           </div>
         </div>
 
+        <div class="mb-6">
+          <label class="flex items-start gap-3">
+            <input type="checkbox"
+                   name="personal_data_consent"
+                   value="1"
+                   {% if reg_personal_data_consent %}checked{% endif %}
+                   class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <span class="text-sm text-gray-600">
+              Я даю
+              <a href="{% url 'frontend:personal_data_consent' %}" class="text-blue-600 hover:text-blue-700">согласие на обработку персональных данных</a>
+              и подтверждаю, что ознакомился(ась) с
+              <a href="{% url 'frontend:privacy_policy' %}" class="text-blue-600 hover:text-blue-700">политикой обработки персональных данных</a>.
+            </span>
+          </label>
+          {% if register_errors.personal_data_consent %}
+            <p class="mt-2 text-xs text-red-500">{{ register_errors.personal_data_consent }}</p>
+          {% endif %}
+        </div>
+
         <button type="submit" id="register-submit"
                 class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
           <svg id="register-spinner" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" style="display:none;">
@@ -222,7 +241,7 @@
   </div>
 
   <p class="text-center text-xs text-gray-400 mt-5">
-    Продолжая, вы соглашаетесь с условиями использования платформы.
+    Политика и согласие доступны до регистрации и из интерфейса платформы.
   </p>
 
 </div>

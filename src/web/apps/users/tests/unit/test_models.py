@@ -2,7 +2,13 @@ from datetime import timedelta
 from uuid import uuid4
 
 from apps.projects.models import Technology
-from apps.users.models import EmailVerificationCode, UserProfile, UserRole
+from apps.users.models import (
+    EmailVerificationCode,
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    UserProfile,
+    UserRole,
+)
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -75,3 +81,12 @@ def test_set_favorite_project_ids_normalizes_and_deduplicates_values():
     profile.set_favorite_project_ids([1, 2, 1, 3, 3])
 
     assert profile.favorite_project_ids == [1, 2, 3]
+
+
+def test_external_access_models_normalize_email():
+    suffix = uuid4().hex[:8]
+    allowlist = ExternalAccessAllowlist.objects.create(email=f"Teacher-{suffix}@Example.COM")
+    request_obj = ExternalAccessRequest.objects.create(email=f"Invited-{suffix}@Example.COM")
+
+    assert allowlist.email == f"teacher-{suffix}@example.com"
+    assert request_obj.email == f"invited-{suffix}@example.com"
