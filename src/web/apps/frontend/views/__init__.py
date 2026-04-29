@@ -30,6 +30,7 @@ from .cpprp import (
     cpprp_template_delete,
     cpprp_template_toggle,
 )
+from .legal import personal_data_consent_view, privacy_policy_view
 from .moderation import moderate_project_decide, moderation_list
 from .profile import profile_view
 from .projects import (
@@ -83,6 +84,9 @@ __all__ = [
     "cpprp_template_delete",
     "cpprp_export_projects",
     "cpprp_export_applications",
+    # legal
+    "privacy_policy_view",
+    "personal_data_consent_view",
     # moderation
     "moderation_list",
     "moderate_project_decide",

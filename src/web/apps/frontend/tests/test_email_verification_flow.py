@@ -34,6 +34,7 @@ def test_registration_sends_code_and_keeps_user_logged_out():
             "password": "password123",
             "name": "New Student",
             "role": UserRole.STUDENT,
+            "personal_data_consent": "1",
         },
     )
 

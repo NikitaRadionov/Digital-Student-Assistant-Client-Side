@@ -1,4 +1,4 @@
-{% load frontend_extras %}
+{% load frontend_extras static %}
 <!doctype html>
 <html lang="ru" class="h-full">
 <head>
@@ -7,8 +7,8 @@
   <title>{% block title %}Digital Student Assistant{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
 
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  <link href="{% static 'frontend/vendor/tailwind-2.2.19.min.css' %}" rel="stylesheet">
+  <script src="{% static 'frontend/vendor/htmx-1.9.12.min.js' %}" defer></script>
 
   <style>
     @keyframes toast-in  { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
@@ -228,10 +228,60 @@
     {% block content %}{% endblock %}
   </main>
 
+  <footer class="border-t border-gray-200 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs text-gray-500 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p>Digital Student Assistant использует технические cookie для входа, безопасности и работы форм.</p>
+      <div class="flex items-center gap-4">
+        <a href="{% url 'frontend:privacy_policy' %}" class="hover:text-gray-900">Политика ПДн</a>
+        <a href="{% url 'frontend:personal_data_consent' %}" class="hover:text-gray-900">Согласие на обработку ПДн</a>
+      </div>
+    </div>
+  </footer>
+
   {% block extra_js %}{% endblock %}
+
+  <div id="cookie-banner"
+       style="display:none;position:fixed;left:1rem;right:1rem;bottom:1rem;z-index:60;max-width:720px;margin:0 auto;">
+    <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-lg">
+      <p class="text-sm text-gray-700">
+        Сайт использует технические cookie для входа в систему, поддержания сессии и безопасности запросов.
+        <a href="{% url 'frontend:privacy_policy' %}" class="text-blue-600 hover:text-blue-700">Подробнее в политике</a>.
+      </p>
+      <div class="mt-3 flex justify-end">
+        <button type="button"
+                id="cookie-banner-accept"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+          Понятно
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Profile dropdown JS -->
   <script>
+    (function() {
+      var storageKey = 'dsa_cookie_notice_accepted_v1';
+      var banner = document.getElementById('cookie-banner');
+      var acceptButton = document.getElementById('cookie-banner-accept');
+      if (!banner || !acceptButton) {
+        return;
+      }
+      try {
+        if (!window.localStorage.getItem(storageKey)) {
+          banner.style.display = 'block';
+        }
+        acceptButton.addEventListener('click', function() {
+          window.localStorage.setItem(storageKey, '1');
+          banner.style.display = 'none';
+        });
+      } catch (error) {
+        banner.style.display = 'block';
+        acceptButton.addEventListener('click', function() {
+          banner.style.display = 'none';
+        });
+      }
+    })();
+
     function toggleProfileMenu() {
       var d = document.getElementById('profile-dropdown');
       d.style.display = d.style.display === 'none' ? 'block' : 'none';

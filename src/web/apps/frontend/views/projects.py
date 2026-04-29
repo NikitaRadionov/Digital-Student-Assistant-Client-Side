@@ -986,6 +986,10 @@ class InitiativeProjectForm(dj_forms.Form):
         required=False,
         label="Желаемый руководитель",
     )
+    supervisor_personal_data_consent = dj_forms.BooleanField(
+        required=False,
+        label="Подтверждение согласия руководителя",
+    )
 
     def clean_tech_tags_raw(self):
         raw = self.cleaned_data.get("tech_tags_raw", "")
@@ -1003,6 +1007,17 @@ class InitiativeProjectForm(dj_forms.Form):
                 params={"tags": ", ".join(invalid)},
             )
         return tags
+
+    def clean(self):
+        cleaned_data = super().clean()
+        supervisor_name = (cleaned_data.get("supervisor_name") or "").strip()
+        supervisor_consent = bool(cleaned_data.get("supervisor_personal_data_consent"))
+        if supervisor_name and not supervisor_consent:
+            self.add_error(
+                "supervisor_personal_data_consent",
+                "Если вы указываете ФИО руководителя, подтвердите наличие его согласия.",
+            )
+        return cleaned_data
 
 
 @login_required(login_url="/auth/")

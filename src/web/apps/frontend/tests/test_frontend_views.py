@@ -214,6 +214,26 @@ def test_initiative_project_create_post_valid():
     assert "fastapi" in project.tech_tags
 
 
+def test_initiative_project_requires_consent_for_supervisor_data():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+
+    response = client.post(
+        reverse("frontend:initiative_project_create"),
+        {
+            "title": "My Initiative",
+            "description": "A detailed description of my project idea.",
+            "tech_tags_raw": "Python, FastAPI",
+            "team_size": "2",
+            "supervisor_name": "Иванов Иван Иванович",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "подтвердите наличие его согласия" in response.content.decode()
+
+
 def test_initiative_project_create_post_invalid_no_title():
     student = _make_student()
     client = Client()
@@ -246,6 +266,7 @@ def test_initiative_project_with_supervisor():
             "tech_tags_raw": "",
             "team_size": "1",
             "supervisor_name": "Иванов Иван Иванович",
+            "supervisor_personal_data_consent": "1",
         },
     )
 
@@ -853,7 +874,13 @@ def test_register_rejects_invalid_email():
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
-        {"tab": "register", "email": "sdfsdf", "password": "ValidPass1", "role": "student"},
+        {
+            "tab": "register",
+            "email": "sdfsdf",
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
     )
     assert response.status_code == 200
     content = response.content.decode()
@@ -866,7 +893,13 @@ def test_register_rejects_email_missing_domain():
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
-        {"tab": "register", "email": "user@", "password": "ValidPass1", "role": "student"},
+        {
+            "tab": "register",
+            "email": "user@",
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
     )
     assert response.status_code == 200
     assert "корректный email" in response.content.decode()
@@ -882,6 +915,7 @@ def test_register_accepts_valid_email():
             "email": f"valid_{uid}@example.com",
             "password": "ValidPass1",
             "role": "student",
+            "personal_data_consent": "1",
         },
     )
     assert response.status_code == 302
@@ -898,6 +932,7 @@ def test_register_rejects_short_password():
             "email": f"u_{uid}@example.com",
             "password": "short",
             "role": "student",
+            "personal_data_consent": "1",
         },
     )
     assert response.status_code == 200
@@ -911,10 +946,33 @@ def test_register_rejects_duplicate_email():
     client = Client()
     response = client.post(
         reverse("frontend:auth"),
-        {"tab": "register", "email": email, "password": "ValidPass1", "role": "student"},
+        {
+            "tab": "register",
+            "email": email,
+            "password": "ValidPass1",
+            "role": "student",
+            "personal_data_consent": "1",
+        },
     )
     assert response.status_code == 200
     assert "уже существует" in response.content.decode()
+
+
+def test_register_requires_personal_data_consent():
+    uid = _uid()
+    client = Client()
+    response = client.post(
+        reverse("frontend:auth"),
+        {
+            "tab": "register",
+            "email": f"noconsent_{uid}@example.com",
+            "password": "ValidPass1",
+            "role": "student",
+        },
+    )
+    assert response.status_code == 200
+    assert "необходимо согласие" in response.content.decode()
+    assert not User.objects.filter(email=f"noconsent_{uid}@example.com").exists()
 
 
 def test_login_rejects_invalid_email_format():
@@ -925,3 +983,14 @@ def test_login_rejects_invalid_email_format():
     )
     assert response.status_code == 200
     assert "корректный email" in response.content.decode()
+
+
+def test_legal_pages_are_public():
+    client = Client()
+    privacy = client.get(reverse("frontend:privacy_policy"))
+    consent = client.get(reverse("frontend:personal_data_consent"))
+
+    assert privacy.status_code == 200
+    assert "Политика обработки персональных данных" in privacy.content.decode()
+    assert consent.status_code == 200
+    assert "Согласие на обработку персональных данных" in consent.content.decode()

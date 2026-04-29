@@ -28,6 +28,7 @@ from django.views.decorators.http import require_POST
 
 _NAME_MAX = 100
 _PASSWORD_MIN = 8
+_CONSENT_ACCEPTED_VALUES = {"1", "true", "on", "yes"}
 
 
 def _check_email_fmt(email: str) -> bool:
@@ -89,6 +90,7 @@ def auth_view(request):
     reg_email = ""
     reg_name = ""
     reg_role = UserRole.STUDENT
+    reg_personal_data_consent = False
     login_requires_email_verification = False
 
     if request.method == "POST":
@@ -136,6 +138,10 @@ def auth_view(request):
             password = request.POST.get("password", "")
             reg_name = request.POST.get("name", "").strip()
             reg_role = request.POST.get("role", UserRole.STUDENT)
+            reg_personal_data_consent = (
+                request.POST.get("personal_data_consent", "").strip().lower()
+                in _CONSENT_ACCEPTED_VALUES
+            )
 
             if not reg_email:
                 register_errors["email"] = "Введите email."
@@ -151,6 +157,10 @@ def auth_view(request):
                 register_errors["name"] = f"Имя не может превышать {_NAME_MAX} символов."
             if reg_role not in {UserRole.STUDENT, UserRole.CUSTOMER}:
                 reg_role = UserRole.STUDENT
+            if not reg_personal_data_consent:
+                register_errors["personal_data_consent"] = (
+                    "Для регистрации необходимо согласие на обработку персональных данных."
+                )
 
             if not register_errors:
                 User = get_user_model()
@@ -191,6 +201,7 @@ def auth_view(request):
             "reg_email": reg_email,
             "reg_name": reg_name,
             "reg_role": reg_role,
+            "reg_personal_data_consent": reg_personal_data_consent,
             "UserRole": UserRole,
         },
     )

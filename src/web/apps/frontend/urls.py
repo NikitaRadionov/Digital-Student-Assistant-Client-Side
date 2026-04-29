@@ -5,6 +5,10 @@ from . import views
 app_name = "frontend"
 
 urlpatterns = [
+    # Legal
+    path("legal/privacy/", views.privacy_policy_view, name="privacy_policy"),
+    path("legal/consent/", views.personal_data_consent_view, name="personal_data_consent"),
+
     # Auth
     path("auth/", views.auth_view, name="auth"),
     path("auth/verify/", views.verify_email_view, name="verify_email"),
