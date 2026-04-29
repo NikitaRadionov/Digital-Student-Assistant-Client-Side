@@ -47,12 +47,55 @@ urlpatterns = [
         views.withdraw_application,
         name="withdraw_application",
     ),
+    path(
+        "applications/<int:pk>/edit/",
+        views.edit_application,
+        name="edit_application",
+    ),
 
     # Project applications (customer view)
     path(
         "projects/<int:pk>/applications/",
         views.project_applications,
         name="project_applications",
+    ),
+
+    # Technologies directory
+    path("technologies/", views.technology_list, name="technology_list"),
+    path("technologies/<int:pk>/moderate/", views.technology_moderate, name="technology_moderate"),
+
+    # CPPRP administration dashboard
+    path("cpprp/", views.cpprp_dashboard, name="cpprp_dashboard"),
+    path("cpprp/deadlines/create/", views.cpprp_deadline_create, name="cpprp_deadline_create"),
+    path(
+        "cpprp/deadlines/<int:pk>/toggle/",
+        views.cpprp_deadline_toggle,
+        name="cpprp_deadline_toggle"
+    ),
+    path(
+        "cpprp/deadlines/<int:pk>/delete/",
+        views.cpprp_deadline_delete,
+        name="cpprp_deadline_delete"
+    ),
+    path(
+        "cpprp/templates/create/",
+        views.cpprp_template_create,
+        name="cpprp_template_create"
+    ),
+    path(
+        "cpprp/templates/<int:pk>/toggle/",
+        views.cpprp_template_toggle,
+        name="cpprp_template_toggle"),
+    path(
+        "cpprp/templates/<int:pk>/delete/",
+        views.cpprp_template_delete,
+        name="cpprp_template_delete"
+    ),
+    path("cpprp/export/projects/", views.cpprp_export_projects, name="cpprp_export_projects"),
+    path(
+        "cpprp/export/applications/",
+        views.cpprp_export_applications,
+        name="cpprp_export_applications"
     ),
 
     # Moderation
@@ -62,6 +105,9 @@ urlpatterns = [
         views.moderate_project_decide,
         name="moderate_project_decide",
     ),
+
+    # Student overview / dashboard
+    path("student/", views.student_overview, name="student_overview"),
 
     # Recommendations (student only)
     path("recommendations/", views.recommendations_view, name="recommendations"),

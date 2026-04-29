@@ -285,15 +285,21 @@
             О себе
           </label>
           <textarea name="bio" id="id_bio" rows="4"
-                    placeholder="Расскажите кратко о себе, своём опыте и целях..."
+                    placeholder="Например: студент 3 курса, специальность «Прикладная информатика». Занимаюсь разработкой веб-приложений, интересуюсь машинным обучением. Ищу проект в области обработки данных или бэкенд-разработки."
                     maxlength="500"
+                    oninput="updateBioCounter(this.value.length)"
                     class="w-full border {% if profile_errors.bio %}border-red-400{% else %}border-gray-200{% endif %} rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition resize-none"
                     style="background:#fafafa;">{{ profile.bio|default:"" }}</textarea>
-          {% if profile_errors.bio %}
-          <p class="text-xs text-red-500 mt-1">{{ profile_errors.bio }}</p>
-          {% else %}
-          <p class="text-xs text-gray-400 mt-1">Максимум 500 символов</p>
-          {% endif %}
+          <div class="flex items-center justify-between mt-1">
+            {% if profile_errors.bio %}
+            <p class="text-xs text-red-500">{{ profile_errors.bio }}</p>
+            {% else %}
+            <p class="text-xs text-gray-400">Кратко об опыте, специальности и целях</p>
+            {% endif %}
+            <span id="bio-counter" class="text-xs text-gray-300 flex-shrink-0 ml-2">
+              {{ profile.bio|default:""|length }}/500
+            </span>
+          </div>
         </div>
 
         <!-- Interests (students only) -->
@@ -319,7 +325,11 @@
           {% if profile_errors.interests %}
           <p class="text-xs text-red-500 mt-1">{{ profile_errors.interests }}</p>
           {% else %}
-          <p class="text-xs text-gray-400 mt-1">Enter или запятая — добавить тег, Backspace — удалить последний. Максимум 20 интересов.</p>
+          <p class="text-xs text-gray-400 mt-1">
+            Введите технологии и навыки через Enter или запятую. Например:
+            <span class="text-gray-500">Python, Machine Learning, iOS, React, базы данных</span>.
+            Максимум 20 тегов.
+          </p>
           {% endif %}
         </div>
         {% endif %}
@@ -357,6 +367,17 @@ function enterEditMode() {
   document.getElementById('view-mode').style.display = 'none';
   document.getElementById('edit-mode').style.display = 'block';
   initInterestChips();
+  // Pre-fill interests from URL ?suggest= param (only when no interests yet)
+  if (_interests.length === 0) {
+    var _sp = new URLSearchParams(window.location.search).get('suggest');
+    if (_sp) {
+      _sp.split(',').forEach(function(part) {
+        var v = part.trim();
+        if (v && !_interests.includes(v)) _interests.push(v);
+      });
+      renderInterestChips();
+    }
+  }
 }
 function exitEditMode() {
   document.getElementById('edit-mode').style.display = 'none';
@@ -431,6 +452,39 @@ function handleInterestKey(e) {
     _interests.pop();
     renderInterestChips();
   }
+}
+
+// ── Paste support: "Python, Django, ML" → three chips ─────────────────────
+var _iInput = document.getElementById('interests-input');
+if (_iInput) {
+  _iInput.addEventListener('paste', function(e) {
+    e.preventDefault();
+    var pasted = (e.clipboardData || window.clipboardData).getData('text');
+    pasted.split(',').forEach(function(part) {
+      var v = part.trim();
+      if (v && !_interests.includes(v)) _interests.push(v);
+    });
+    renderInterestChips();
+    this.value = '';
+  });
+}
+
+// ── Bio character counter ─────────────────────────────────────────────────
+function updateBioCounter(len) {
+  var el = document.getElementById('bio-counter');
+  if (!el) return;
+  el.textContent = len + '/500';
+  el.style.color = len > 450 ? '#f59e0b' : len > 490 ? '#ef4444' : '';
+}
+// Init counter on page load (edit mode already has value)
+(function() {
+  var ta = document.getElementById('id_bio');
+  if (ta) updateBioCounter(ta.value.length);
+})();
+
+// ── Auto-open edit mode when URL contains ?edit=1 ─────────────────────────
+if (new URLSearchParams(window.location.search).get('edit') === '1') {
+  enterEditMode();
 }
 </script>
 {% endblock %}
