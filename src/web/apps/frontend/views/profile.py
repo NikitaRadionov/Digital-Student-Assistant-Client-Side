@@ -13,7 +13,7 @@ _NAME_MAX = 100
 _BIO_MAX = 500
 _BIO_MIN = 10
 _INTERESTS_MAX = 20
-_INTEREST_ITEM_MIN = 2
+_INTEREST_ITEM_MIN = 1
 _INTEREST_ITEM_MAX = 50
 
 # Tag must start with letter/digit and contain only safe chars
@@ -61,11 +61,13 @@ def profile_view(request):
 
         if short_interests:
             profile_errors["interests"] = (
-                f"Слишком короткий тег: «{short_interests[0]}». Минимум {_INTEREST_ITEM_MIN} символа."
+                f"Слишком короткий тег: «{short_interests[0]}». \
+                    Минимум {_INTEREST_ITEM_MIN} символ(a)."
             )
         elif long_interests:
             profile_errors["interests"] = (
-                f"Тег слишком длинный: «{long_interests[0][:20]}…». Максимум {_INTEREST_ITEM_MAX} символов."
+                f"Тег слишком длинный: «{long_interests[0][:20]}…». \
+                    Максимум {_INTEREST_ITEM_MAX} символов."
             )
         elif invalid_interests:
             profile_errors["interests"] = (

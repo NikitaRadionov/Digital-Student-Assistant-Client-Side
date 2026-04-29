@@ -356,7 +356,8 @@ def _get_recommendations(request):
 
 def _customer_project_list(request):
     """Customer-specific view: all their own projects, all statuses."""
-    from django.db.models import Count, Q as DQ  # noqa: PLC0415
+    from django.db.models import Count  # noqa: PLC0415
+    from django.db.models import Q as DQ
 
     page_number = request.GET.get("page", 1)
     status_filter = request.GET.get("status", "").strip()

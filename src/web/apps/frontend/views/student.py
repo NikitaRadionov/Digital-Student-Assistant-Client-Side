@@ -16,7 +16,6 @@ from apps.applications.models import Application, ApplicationStatus
 from apps.frontend.decorators import student_required
 from apps.projects.models import Project, ProjectStatus
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
 from django.shortcuts import render
 
 logger = logging.getLogger(__name__)

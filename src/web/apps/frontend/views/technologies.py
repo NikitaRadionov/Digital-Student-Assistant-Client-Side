@@ -8,7 +8,7 @@ approve or reject pending technologies from this page.
 import logging
 
 from apps.frontend.decorators import moderator_required
-from apps.projects.models import Project, ProjectStatus, Technology, TechnologyStatus
+from apps.projects.models import ProjectStatus, Technology, TechnologyStatus
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q

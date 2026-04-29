@@ -32,8 +32,6 @@ from .cpprp import (
 )
 from .moderation import moderate_project_decide, moderation_list
 from .profile import profile_view
-from .student import student_overview
-from .technologies import technology_list, technology_moderate
 from .projects import (
     initiative_project_create,
     project_create,
@@ -45,6 +43,8 @@ from .projects import (
     recommendations_view,
     toggle_bookmark,
 )
+from .student import student_overview
+from .technologies import technology_list, technology_moderate
 
 __all__ = [
     # auth
