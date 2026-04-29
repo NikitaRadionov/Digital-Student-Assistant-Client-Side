@@ -97,7 +97,13 @@
           </a>
 
           {% if user.is_authenticated %}
-            <!-- STUDENT nav items moved into Projects page tabs -->
+            <!-- STUDENT only: Мой кабинет -->
+            {% if role == "student" %}
+            <a href="{% url 'frontend:student_overview' %}"
+               class="px-3 py-1 rounded-md transition-colors {% if request.resolver_match.url_name == 'student_overview' %}text-gray-900 bg-gray-100{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+              Мой кабинет
+            </a>
+            {% endif %}
 
             <!-- CUSTOMER only: Создать проект -->
             {% if role == "customer" %}
@@ -107,8 +113,18 @@
             </a>
             {% endif %}
 
-            <!-- CPPRP / STAFF: Модерация -->
+            <!-- All authenticated: Технологии -->
+            <a href="{% url 'frontend:technology_list' %}"
+               class="px-3 py-1 rounded-md transition-colors {% if request.resolver_match.url_name == 'technology_list' %}text-gray-900 bg-gray-100{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+              Технологии
+            </a>
+
+            <!-- CPPRP / STAFF: Кабинет + Модерация -->
             {% if role == "cpprp" or user.is_staff %}
+            <a href="{% url 'frontend:cpprp_dashboard' %}"
+               class="px-3 py-1 rounded-md transition-colors {% if request.resolver_match.url_name == 'cpprp_dashboard' %}text-gray-900 bg-gray-100{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+              Кабинет
+            </a>
             <a href="{% url 'frontend:moderation_list' %}"
                class="px-3 py-1 rounded-md transition-colors {% if request.resolver_match.url_name == 'moderation_list' %}text-gray-900 bg-gray-100{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
               Модерация

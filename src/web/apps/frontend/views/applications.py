@@ -271,6 +271,16 @@ def edit_application(request, pk):
 
     if request.method == "POST":
         motivation = request.POST.get("motivation", "").strip()
+        if motivation and len(motivation) < 30:
+            messages.error(
+                request,
+                "Мотивация слишком короткая — опишите свой опыт и интерес к проекту (минимум 30 символов).",
+            )
+            return render(
+                request,
+                "frontend/edit_application.html",
+                {"application": application, "project": application.project},
+            )
         application.motivation = motivation
         application.save(update_fields=["motivation"])
         messages.success(request, "Мотивация обновлена.")

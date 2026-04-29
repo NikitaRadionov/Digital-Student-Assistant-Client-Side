@@ -19,8 +19,21 @@ from .auth import (
     resend_email_code_view,
     verify_email_view,
 )
+from .cpprp import (
+    cpprp_dashboard,
+    cpprp_deadline_create,
+    cpprp_deadline_delete,
+    cpprp_deadline_toggle,
+    cpprp_export_applications,
+    cpprp_export_projects,
+    cpprp_template_create,
+    cpprp_template_delete,
+    cpprp_template_toggle,
+)
 from .moderation import moderate_project_decide, moderation_list
 from .profile import profile_view
+from .student import student_overview
+from .technologies import technology_list, technology_moderate
 from .projects import (
     initiative_project_create,
     project_create,
@@ -60,9 +73,24 @@ __all__ = [
     "review_application_view",
     "withdraw_application",
     "edit_application",
+    # cpprp
+    "cpprp_dashboard",
+    "cpprp_deadline_create",
+    "cpprp_deadline_toggle",
+    "cpprp_deadline_delete",
+    "cpprp_template_create",
+    "cpprp_template_toggle",
+    "cpprp_template_delete",
+    "cpprp_export_projects",
+    "cpprp_export_applications",
     # moderation
     "moderation_list",
     "moderate_project_decide",
     # profile
     "profile_view",
+    # technologies
+    "technology_list",
+    "technology_moderate",
+    # student
+    "student_overview",
 ]

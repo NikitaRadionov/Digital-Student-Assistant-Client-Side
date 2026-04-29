@@ -22,11 +22,17 @@
 <!-- Main tab bar -->
 <div class="flex items-center gap-0.5 mb-6 bg-white border border-gray-200 rounded-xl p-1"
      style="width:fit-content;">
+  <button id="tab-btn-summary"
+          onclick="switchTab('summary')"
+          class="px-4 py-1.5 text-sm rounded-lg transition-colors font-medium bg-gray-100 text-gray-900">
+    Сводка
+    {% if dashboard.pending_apps %}<span class="ml-1 text-xs text-red-500 font-bold">{{ dashboard.pending_apps }}</span>{% endif %}
+  </button>
   <button id="tab-btn-projects"
           onclick="switchTab('projects')"
-          class="px-4 py-1.5 text-sm rounded-lg transition-colors font-medium bg-gray-100 text-gray-900">
+          class="px-4 py-1.5 text-sm rounded-lg transition-colors text-gray-500 hover:text-gray-700">
     Мои проекты
-    {% if total_count %}<span class="ml-1 text-xs text-gray-500">{{ total_count }}</span>{% endif %}
+    {% if total_count %}<span class="ml-1 text-xs text-gray-400">{{ total_count }}</span>{% endif %}
   </button>
   <button id="tab-btn-articles"
           onclick="switchTab('articles')"
@@ -48,9 +54,103 @@
 </div>
 
 <!-- ================================================================ -->
+<!-- TAB: Сводка (дашборд заказчика)                                    -->
+<!-- ================================================================ -->
+<div id="tab-panel-summary">
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 mb-6">
+
+    <div class="bg-white border border-gray-200 rounded-xl px-4 py-4">
+      <p class="text-xs text-gray-400 mb-1">Опубликованных</p>
+      <p class="text-2xl font-bold text-gray-900">{{ dashboard.active_projects }}</p>
+    </div>
+
+    <div class="bg-white border border-{% if dashboard.on_moderation %}yellow{% else %}gray{% endif %}-{% if dashboard.on_moderation %}200{% else %}200{% endif %} rounded-xl px-4 py-4">
+      <p class="text-xs text-{% if dashboard.on_moderation %}yellow-600{% else %}gray-400{% endif %} mb-1">На модерации</p>
+      <p class="text-2xl font-bold text-{% if dashboard.on_moderation %}yellow-700{% else %}gray-900{% endif %}">{{ dashboard.on_moderation }}</p>
+    </div>
+
+    <div class="bg-white border border-{% if dashboard.pending_apps %}red{% else %}gray{% endif %}-{% if dashboard.pending_apps %}200{% else %}200{% endif %} rounded-xl px-4 py-4">
+      <p class="text-xs text-{% if dashboard.pending_apps %}red-500{% else %}gray-400{% endif %} mb-1">Заявок ожидает</p>
+      <p class="text-2xl font-bold text-{% if dashboard.pending_apps %}red-600{% else %}gray-900{% endif %}">{{ dashboard.pending_apps }}</p>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl px-4 py-4">
+      <p class="text-xs text-gray-400 mb-1">Свободных мест</p>
+      <p class="text-2xl font-bold text-gray-900">{{ dashboard.spots_left_total }}</p>
+    </div>
+
+  </div>
+
+  <!-- Projects needing attention -->
+  {% if dashboard.projects_with_pending %}
+  <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+      <h2 class="text-base font-semibold text-gray-900">Требуют внимания</h2>
+      <span class="px-2 py-0.5 text-xs font-semibold bg-red-50 border border-red-100 text-red-600 rounded-full">
+        {{ dashboard.pending_apps }} заявк{% if dashboard.pending_apps == 1 %}а{% elif dashboard.pending_apps < 5 %}и{% else %}ок{% endif %}
+      </span>
+    </div>
+    <div class="divide-y divide-gray-50">
+      {% for proj in dashboard.projects_with_pending %}
+      <div class="px-5 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+        <div class="min-w-0">
+          <a href="{% url 'frontend:project_detail' proj.pk %}"
+             class="text-sm font-medium text-gray-800 hover:text-blue-600 transition-colors truncate block">
+            {{ proj.title }}
+          </a>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {{ proj.accepted_participants_count }}&thinsp;/&thinsp;{{ proj.team_size }} принято
+          </p>
+        </div>
+        <a href="{% url 'frontend:project_applications' proj.pk %}"
+           class="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-blue-50 border border-blue-100 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors">
+          {{ proj.pending_count }} заявк{% if proj.pending_count == 1 %}а{% elif proj.pending_count < 5 %}и{% else %}ок{% endif %}
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-2xl mb-6 px-5 py-10 text-center">
+    {% if dashboard.active_projects %}
+    <p class="text-gray-500 font-medium">Новых заявок нет</p>
+    <p class="text-xs text-gray-400 mt-1">Ожидайте — студенты видят ваши проекты в каталоге</p>
+    {% else %}
+    <p class="text-gray-500 font-medium">Пока нет опубликованных проектов</p>
+    <a href="{% url 'frontend:project_create' %}"
+       class="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
+      Создать проект
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- All-time stats -->
+  {% if dashboard.total_apps %}
+  <div class="flex items-center gap-3 text-sm text-gray-400 px-1">
+    <span>Всего заявок за всё время: <strong class="text-gray-600">{{ dashboard.total_apps }}</strong></span>
+    {% if dashboard.accepted_apps %}
+    <span class="text-gray-200">·</span>
+    <span>Принято: <strong class="text-green-600">{{ dashboard.accepted_apps }}</strong></span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div><!-- /tab-panel-summary -->
+
+
+<!-- ================================================================ -->
 <!-- TAB: Мои проекты                                                   -->
 <!-- ================================================================ -->
-<div id="tab-panel-projects">
+<div id="tab-panel-projects" style="display:none;">
 
   <!-- Status filter -->
   {% if total_count %}
@@ -553,7 +653,7 @@ window.filterArticles = function() {
 };
 
 function switchTab(tab) {
-  var tabs = ['projects', 'articles', 'staff', 'graph'];
+  var tabs = ['summary', 'projects', 'articles', 'staff', 'graph'];
   tabs.forEach(function(t) {
     var panel = document.getElementById('tab-panel-' + t);
     var btn   = document.getElementById('tab-btn-' + t);
@@ -572,7 +672,7 @@ function switchTab(tab) {
 
   // Reflect active tab in URL without reload
   var url = new URL(window.location);
-  if (tab !== 'projects') {
+  if (tab !== 'summary') {
     url.searchParams.set('tab', tab);
   } else {
     url.searchParams.delete('tab');
@@ -581,12 +681,16 @@ function switchTab(tab) {
 }
 
 // Restore active tab from URL on load
+// Default: 'summary'. If ?status=X is set → switch to 'projects'. If ?tab=X → use that.
 (function() {
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
   if (tab && document.getElementById('tab-panel-' + tab)) {
     switchTab(tab);
+  } else if (params.get('status')) {
+    switchTab('projects');
   }
+  // else: 'summary' is already visible by default (no style="display:none")
 })();
 </script>
 

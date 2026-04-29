@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import cast
 
 from apps.applications.models import Application, ApplicationStatus
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 _TAG_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9 \-\.+#_]*$")
 
 PAGE_SIZE = 9
-RECOMMENDED_COUNT = 4
+RECOMMENDED_COUNT = 6
 _RECS_CACHE_TTL = 300  # seconds (5 min)
 
 _LOCKED_STATUSES = {ProjectStatus.PUBLISHED, ProjectStatus.STAFFED, ProjectStatus.ARCHIVED}
@@ -193,6 +193,7 @@ def project_list(request):
     my_applications = []
     app_counts = {}
     my_initiative_projects = []
+    suggested_interests: list[str] = []
 
     if _is_student:
         show_recs_tab = True
@@ -226,6 +227,18 @@ def project_list(request):
                 owner=request.user, source_type=ProjectSourceType.INITIATIVE
             ).order_by("-created_at")
         )
+
+        # Suggest interests from activity when student has none set
+        if not has_interests:
+            fav_ids = list(request.user.profile.favorite_project_ids)
+            applied_ids = [a.project_id for a in my_applications]
+            activity_ids = list({*fav_ids, *applied_ids})[:20]
+            if activity_ids:
+                tag_counts: Counter = Counter()
+                for _p in Project.objects.filter(pk__in=activity_ids).only("tech_tags"):
+                    for _tag in (_p.tech_tags or []):
+                        tag_counts[_tag] += 1
+                suggested_interests = [t for t, _ in tag_counts.most_common(6)]
 
     # --- Bookmarks tab (all authenticated users) ---
     show_bookmarks_tab = False
@@ -266,6 +279,7 @@ def project_list(request):
             "my_applications": my_applications,
             "app_counts": app_counts,
             "my_initiative_projects": my_initiative_projects if _is_student else [],
+            "suggested_interests": suggested_interests,
         }
     )
 
@@ -342,6 +356,8 @@ def _get_recommendations(request):
 
 def _customer_project_list(request):
     """Customer-specific view: all their own projects, all statuses."""
+    from django.db.models import Count, Q as DQ  # noqa: PLC0415
+
     page_number = request.GET.get("page", 1)
     status_filter = request.GET.get("status", "").strip()
 
@@ -362,6 +378,42 @@ def _customer_project_list(request):
 
     paginator = Paginator(queryset, PAGE_SIZE)
     page_obj = paginator.get_page(page_number)
+
+    # ── Dashboard counters ────────────────────────────────────────────────────
+    app_agg = Application.objects.filter(project__owner=request.user).aggregate(
+        total=Count("id"),
+        pending=Count("id", filter=DQ(status=ApplicationStatus.SUBMITTED)),
+        accepted=Count("id", filter=DQ(status=ApplicationStatus.ACCEPTED)),
+    )
+
+    # Projects that have at least one pending (submitted) application — for "needs attention"
+    projects_with_pending = list(
+        Project.objects.filter(owner=request.user)
+        .annotate(
+            pending_count=Count(
+                "applications",
+                filter=DQ(applications__status=ApplicationStatus.SUBMITTED),
+            ),
+        )
+        .filter(pending_count__gt=0)
+        .order_by("-pending_count")[:8]
+    )
+
+    # Total open spots across all PUBLISHED projects
+    published_qs = list(base_qs.filter(status=ProjectStatus.PUBLISHED))
+    spots_left_total = sum(
+        max(0, p.team_size - p.accepted_participants_count) for p in published_qs
+    )
+
+    dashboard = {
+        "total_apps": app_agg["total"] or 0,
+        "pending_apps": app_agg["pending"] or 0,
+        "accepted_apps": app_agg["accepted"] or 0,
+        "active_projects": counts.get(ProjectStatus.PUBLISHED, 0),
+        "on_moderation": counts.get(ProjectStatus.ON_MODERATION, 0),
+        "spots_left_total": spots_left_total,
+        "projects_with_pending": projects_with_pending,
+    }
 
     # Real data from faculty service (teammate's API); fallback to sample data
     articles = _fetch_faculty_publications() or _get_sample_articles()
@@ -388,8 +440,10 @@ def _customer_project_list(request):
             "page_obj": page_obj,
             "status_filter": status_filter,
             "ProjectStatus": ProjectStatus,
+            "ApplicationStatus": ApplicationStatus,
             "counts": counts,
             "total_count": base_qs.count(),
+            "dashboard": dashboard,
             "sample_articles": articles,
             "article_years": article_years,
             "article_directions": article_directions,
@@ -417,69 +471,74 @@ _PUB_TYPE_RU = {
 }
 
 
-def _faculty_service_url() -> str:
-    from django.conf import settings
-
-    return (getattr(settings, "FACULTY_SERVICE_URL", "") or "").rstrip("/")
-
-
 def _fetch_faculty_publications(limit: int = 8) -> list[dict]:
-    """Fetch recent publications from the faculty service (teammate's API).
+    """Read recent publications directly from the local faculty mirror (ORM).
+
+    Серёжа's sync_faculty management command keeps FacultyPublication /
+    FacultyAuthorship tables up-to-date from the external faculty service.
+    Reading from the ORM avoids an HTTP round-trip and gives us real author
+    data for the co-authorship graph.
 
     Returns a list in the same format as *_get_sample_articles* so the rest
-    of the view pipeline (filters, template rendering) stays unchanged.
-    Falls back to an empty list on any error — the caller should then use
-    *_get_sample_articles()* as a fallback.
+    of the view pipeline stays unchanged.
+    Falls back to an empty list when the mirror is empty (sync not yet run).
     """
-    import requests
+    from apps.faculty.models import FacultyAuthorship, FacultyPublication
     from django.core.cache import cache
+    from django.db.models import Prefetch
 
     cache_key = f"faculty:pubs:{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
-    base_url = _faculty_service_url()
-    if not base_url:
-        return []
-
     try:
-        resp = requests.get(
-            f"{base_url}/publications",
-            params={"page_size": limit, "ordering": "-year"},
-            timeout=3.0,
+        pubs = list(
+            FacultyPublication.objects
+            .prefetch_related(
+                Prefetch(
+                    "authorships",
+                    queryset=FacultyAuthorship.objects.order_by("position"),
+                )
+            )
+            .order_by("-year", "-id")[:limit]
         )
-        resp.raise_for_status()
-        data = resp.json()
         articles = []
-        for pub in data.get("items", []):
+        for pub in pubs:
+            authors = [
+                a.display_name
+                for a in pub.authorships.all()
+                if a.display_name
+            ]
             articles.append(
                 {
-                    "title": pub.get("title") or "",
-                    "authors": [],  # not provided by the list endpoint
+                    "title": pub.title,
+                    "authors": authors,
                     "venue": "",
-                    "year": pub.get("year"),
-                    "doi_url": pub.get("url") or "",
+                    "year": pub.year,
+                    "doi_url": pub.url or "",
                     "keywords": [],
-                    "direction": _PUB_TYPE_RU.get(pub.get("type", ""), pub.get("type", "")),
+                    "direction": _PUB_TYPE_RU.get(
+                        pub.publication_type, pub.publication_type
+                    ),
                 }
             )
         if articles:
             cache.set(cache_key, articles, timeout=_FACULTY_CACHE_TTL)
         return articles
     except Exception:
-        logger.warning("faculty_service /publications fetch failed", exc_info=True)
+        logger.warning("faculty ORM publications query failed", exc_info=True)
         return []
 
 
 def _fetch_faculty_staff(limit: int = 8) -> list[dict]:
-    """Fetch faculty members from the faculty service (teammate's API).
+    """Read faculty members directly from the local faculty mirror (ORM).
 
     Returns a list in the same format as *_get_sample_staff* so the template
     works without changes.
-    Falls back to an empty list on any error.
+    Falls back to an empty list when the mirror is empty (sync not yet run).
     """
-    import requests
+    from apps.faculty.models import FacultyPerson
     from django.core.cache import cache
 
     cache_key = f"faculty:staff:{limit}"
@@ -487,35 +546,38 @@ def _fetch_faculty_staff(limit: int = 8) -> list[dict]:
     if cached is not None:
         return cached
 
-    base_url = _faculty_service_url()
-    if not base_url:
-        return []
-
     try:
-        resp = requests.get(
-            f"{base_url}/persons",
-            params={"page_size": limit, "ordering": "-publications_total"},
-            timeout=3.0,
+        persons = list(
+            FacultyPerson.objects
+            .filter(is_stale=False)
+            .order_by("-publications_total")[:limit]
         )
-        resp.raise_for_status()
-        data = resp.json()
         staff = []
-        for person in data.get("items", []):
+        for p in persons:
+            # positions is a raw JSON list from HSE; extract the first title if present
+            position = ""
+            if isinstance(p.positions, list) and p.positions:
+                first = p.positions[0]
+                if isinstance(first, dict):
+                    position = str(
+                        first.get("position") or first.get("title") or ""
+                    ).strip()
+
             staff.append(
                 {
-                    "name": person.get("full_name") or "",
-                    "position": person.get("primary_unit") or "",
-                    "department": person.get("primary_unit") or "",
-                    "research_areas": [],  # available via GET /persons/{id}, not in summary
-                    "works_count": person.get("publications_total") or 0,
-                    "profile_url": person.get("profile_url") or "",
+                    "name": p.full_name,
+                    "position": position or p.primary_unit,
+                    "department": p.primary_unit,
+                    "research_areas": list(p.interests)[:3] if p.interests else [],
+                    "works_count": p.publications_total,
+                    "profile_url": p.source_profile_url,
                 }
             )
         if staff:
             cache.set(cache_key, staff, timeout=_FACULTY_CACHE_TTL)
         return staff
     except Exception:
-        logger.warning("faculty_service /persons fetch failed", exc_info=True)
+        logger.warning("faculty ORM staff query failed", exc_info=True)
         return []
 
 
