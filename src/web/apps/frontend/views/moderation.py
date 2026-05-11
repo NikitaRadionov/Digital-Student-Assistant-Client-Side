@@ -1,23 +1,20 @@
 from apps.frontend.decorators import moderator_required
 from apps.frontend.forms import ModerationDecisionForm
-from apps.frontend.utils import flash_form_errors
+from apps.frontend.utils import LOGIN_URL, flash_form_errors
 from apps.projects.models import Project, ProjectStatus
 from apps.projects.transitions import moderate_project
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
-from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied  # raised by transitions layer
+from rest_framework.exceptions import ValidationError as DRFValidationError     # raised by transitions layer
 
-from .projects import PAGE_SIZE
-
-_LOGIN_URL = reverse_lazy("frontend:auth")
+_PAGE_SIZE = 9
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def moderation_list(request):
     page_number = request.GET.get("page", 1)
@@ -27,7 +24,7 @@ def moderation_list(request):
         .select_related("owner")
         .order_by("updated_at")
     )
-    paginator   = Paginator(queryset, PAGE_SIZE)
+    paginator   = Paginator(queryset, _PAGE_SIZE)
     page_obj    = paginator.get_page(page_number)
     queue_count = paginator.count
 
@@ -39,7 +36,7 @@ def moderation_list(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def moderate_project_decide(request, pk):
     project = get_object_or_404(Project, pk=pk)

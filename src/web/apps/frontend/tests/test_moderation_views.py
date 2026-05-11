@@ -63,13 +63,13 @@ class TestModerationList:
         client = Client()
         client.force_login(_make_student())
         response = client.get(reverse("frontend:moderation_list"))
-        assert response.status_code in (302, 403, 404)
+        assert response.status_code == 403
 
     def test_forbidden_for_customer(self):
         client = Client()
         client.force_login(_make_customer())
         response = client.get(reverse("frontend:moderation_list"))
-        assert response.status_code in (302, 403, 404)
+        assert response.status_code == 403
 
     def test_accessible_for_cpprp(self):
         client = Client()
@@ -152,9 +152,37 @@ class TestModerateProjectDecide:
             reverse("frontend:moderate_project_decide", kwargs={"pk": project.pk}),
             {"decision": "approve", "comment": ""},
         )
-        assert response.status_code in (302, 403, 404)
+        assert response.status_code == 403
         project.refresh_from_db()
         assert project.status == ProjectStatus.ON_MODERATION
+
+    def test_forbidden_for_customer(self):
+        customer = _make_customer()
+        project  = _make_project(customer)
+        client   = Client()
+        client.force_login(customer)
+        response = client.post(
+            reverse("frontend:moderate_project_decide", kwargs={"pk": project.pk}),
+            {"decision": "approve", "comment": ""},
+        )
+        assert response.status_code == 403
+        project.refresh_from_db()
+        assert project.status == ProjectStatus.ON_MODERATION
+
+    def test_staff_can_approve(self):
+        staff    = _make_staff()
+        customer = _make_customer()
+        project  = _make_project(customer)
+        client   = Client()
+        client.force_login(staff)
+        response = client.post(
+            reverse("frontend:moderate_project_decide", kwargs={"pk": project.pk}),
+            {"decision": "approve", "comment": ""},
+        )
+        assert response.status_code == 302
+        project.refresh_from_db()
+        assert project.status == ProjectStatus.PUBLISHED
+        assert project.moderated_by == staff
 
     def test_approve_publishes_project(self):
         cpprp    = _make_cpprp()

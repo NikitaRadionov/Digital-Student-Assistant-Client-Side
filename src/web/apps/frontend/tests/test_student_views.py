@@ -1,14 +1,7 @@
-"""
-Student overview view tests.
-
-Covers: unauthenticated redirect, role-based access control, context data
-(counters, recent apps, favourites, deadlines by audience).
-"""
-
 from uuid import uuid4
 
 import pytest
-from apps.account.models import DeadlineAudience, PlatformDeadline
+from apps.account.models import DeadlineAudience, DocumentTemplate, PlatformDeadline
 from apps.applications.models import Application, ApplicationStatus
 from apps.projects.models import Project, ProjectStatus
 from apps.users.models import UserProfile, UserRole
@@ -37,6 +30,12 @@ def _make_customer():
     return user
 
 
+def _make_cpprp():
+    user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
+    UserProfile.objects.create(user=user, role=UserRole.CPPRP)
+    return user
+
+
 def _make_project(**kwargs):
     defaults = {"title": f"Project {_uid()}", "status": ProjectStatus.PUBLISHED, "team_size": 3}
     defaults.update(kwargs)
@@ -51,11 +50,16 @@ class TestStudentOverview:
         assert "/auth/" in response["Location"]
 
     def test_forbidden_for_customer(self):
-        """student_required decorator must block non-students."""
         client = Client()
         client.force_login(_make_customer())
         response = client.get(reverse("frontend:student_overview"))
-        assert response.status_code in (302, 403)
+        assert response.status_code == 302
+
+    def test_forbidden_for_cpprp(self):
+        client = Client()
+        client.force_login(_make_cpprp())
+        response = client.get(reverse("frontend:student_overview"))
+        assert response.status_code == 302
 
     def test_accessible_for_student(self):
         client = Client()
@@ -135,6 +139,22 @@ class TestStudentOverview:
         assert response.status_code == 200
         deadlines = response.context["deadlines"]
         assert all(d.is_active for d in deadlines)
+
+    def test_context_has_active_student_templates(self):
+        student = _make_student()
+        tpl = DocumentTemplate.objects.create(
+            slug=f"tpl-{_uid()}",
+            title="Test Template",
+            url="https://example.com/template.docx",
+            audience=DeadlineAudience.STUDENT,
+            is_active=True,
+        )
+        client = Client()
+        client.force_login(student)
+        response = client.get(reverse("frontend:student_overview"))
+        assert response.status_code == 200
+        templates = response.context["templates"]
+        assert any(t.pk == tpl.pk for t in templates)
 
     def test_cpprp_audience_deadline_not_shown_to_student(self):
         """Deadlines targeted at CPPRP must not appear in the student view."""

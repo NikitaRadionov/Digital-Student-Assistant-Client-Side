@@ -4,7 +4,7 @@ from apps.account.models import DeadlineAudience, DocumentTemplate, PlatformDead
 from apps.applications.models import Application, ApplicationStatus
 from apps.frontend.decorators import moderator_required
 from apps.frontend.forms import DeadlineForm, ExternalAllowlistBulkForm, TemplateForm
-from apps.frontend.utils import flash_form_errors
+from apps.frontend.utils import LOGIN_URL, flash_form_errors
 from apps.projects.models import Project, ProjectStatus
 from apps.users.models import (
     ExternalAccessAllowlist,
@@ -20,11 +20,10 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-_LOGIN_URL      = reverse_lazy("frontend:auth")
 _APPS_PAGE_SIZE = 20
 
 
@@ -32,7 +31,7 @@ def _cpprp_tab_redirect(tab: str) -> HttpResponse:
     return redirect(reverse("frontend:cpprp_dashboard") + f"?tab={tab}")
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_dashboard(request):
     project_counts = Project.objects.aggregate(
@@ -110,7 +109,7 @@ def cpprp_dashboard(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_deadline_create(request):
     form = DeadlineForm(request.POST)
@@ -136,7 +135,7 @@ def cpprp_deadline_create(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_deadline_toggle(request, pk):
     dl          = get_object_or_404(PlatformDeadline, pk=pk)
@@ -148,7 +147,7 @@ def cpprp_deadline_toggle(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_deadline_delete(request, pk):
     dl    = get_object_or_404(PlatformDeadline, pk=pk)
@@ -159,7 +158,7 @@ def cpprp_deadline_delete(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_template_create(request):
     form = TemplateForm(request.POST)
@@ -184,7 +183,7 @@ def cpprp_template_create(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_template_toggle(request, pk):
     tpl          = get_object_or_404(DocumentTemplate, pk=pk)
@@ -196,7 +195,7 @@ def cpprp_template_toggle(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_template_delete(request, pk):
     tpl   = get_object_or_404(DocumentTemplate, pk=pk)
@@ -206,7 +205,7 @@ def cpprp_template_delete(request, pk):
     return _cpprp_tab_redirect("templates")
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_export_projects(request):
     response = HttpResponse(content_type="text/csv; charset=utf-8")
@@ -229,7 +228,7 @@ def cpprp_export_projects(request):
     return response
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_export_applications(request):
     response = HttpResponse(content_type="text/csv; charset=utf-8")
@@ -253,7 +252,7 @@ def cpprp_export_applications(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_external_allowlist_bulk_add(request):
     form = ExternalAllowlistBulkForm(request.POST)
@@ -292,7 +291,7 @@ def cpprp_external_allowlist_bulk_add(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_external_request_approve(request, pk):
     access_request = get_object_or_404(ExternalAccessRequest, pk=pk)
@@ -324,7 +323,7 @@ def cpprp_external_request_approve(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_external_request_reject(request, pk):
     access_request = get_object_or_404(ExternalAccessRequest, pk=pk)
@@ -340,7 +339,7 @@ def cpprp_external_request_reject(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_external_allowlist_toggle(request, pk):
     entry = get_object_or_404(ExternalAccessAllowlist, pk=pk)

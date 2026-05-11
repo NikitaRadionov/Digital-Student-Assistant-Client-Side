@@ -8,6 +8,7 @@ from apps.applications.models import Application, ApplicationStatus
 from apps.frontend.decorators import customer_required, student_required
 from apps.frontend.forms import InitiativeProjectForm, ProjectFrontendForm
 from apps.frontend.forms.projects import _TAGS_MAX
+from apps.frontend.utils import LOGIN_URL
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.projects.normalization import normalize_technology_tag, normalize_technology_tags
 from apps.projects.transitions import submit_project_for_moderation
@@ -21,14 +22,12 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 logger = logging.getLogger(__name__)
-
-_LOGIN_URL = reverse_lazy("frontend:auth")
 
 PAGE_SIZE        = 9
 RECOMMENDED_COUNT = 6
@@ -56,7 +55,7 @@ _PUB_TYPE_RU = {
 }
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def project_list(request):
     _is_student = False
     if request.user.is_authenticated:
@@ -581,7 +580,7 @@ def _build_graph_data(articles):
     return nodes, edges
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def project_detail(request, pk):
     project = get_object_or_404(Project.objects.select_related("owner"), pk=pk)
 
@@ -610,7 +609,7 @@ def project_detail(request, pk):
     })
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @customer_required
 def project_create(request):
     if request.method == "POST":
@@ -636,7 +635,7 @@ def project_create(request):
     })
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def project_edit(request, pk):
     project = get_object_or_404(Project.objects.select_related("owner"), pk=pk)
 
@@ -681,7 +680,7 @@ def project_edit(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def project_submit_moderation(request, pk):
     project = get_object_or_404(Project, pk=pk)
     try:
@@ -693,7 +692,7 @@ def project_submit_moderation(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def project_delete(request, pk):
     project = get_object_or_404(Project.objects.select_related("owner"), pk=pk)
 
@@ -712,13 +711,13 @@ def project_delete(request, pk):
     return redirect("frontend:project_list")
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def recommendations_view(request):
     return redirect(reverse("frontend:project_list") + "?tab=recs")
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def toggle_bookmark(request, pk):
     get_object_or_404(Project, pk=pk)
     profile   = request.user.profile
@@ -736,7 +735,7 @@ def toggle_bookmark(request, pk):
     return JsonResponse({"bookmarked": bookmarked})
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @student_required
 def initiative_project_create(request):
     if request.method == "POST":

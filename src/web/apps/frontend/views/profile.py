@@ -1,21 +1,19 @@
 from apps.applications.models import Application
 from apps.frontend.forms import ProfileEditForm
+from apps.frontend.utils import LOGIN_URL
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.projects.normalization import normalize_technology_tags
 from apps.users.models import UserRole
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
-
-_LOGIN_URL = reverse_lazy("frontend:auth")
 
 
 def _parse_interests(raw: str) -> list[str]:
     return normalize_technology_tags(raw.split(",")) if raw.strip() else []
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def profile_view(request):
     user = request.user
     try:

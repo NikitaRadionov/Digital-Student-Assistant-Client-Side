@@ -123,10 +123,10 @@
   <section class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
       <h2 class="text-base font-semibold text-gray-900">Избранные проекты</h2>
-      {% if fav_ids_total %}
+      {% if counters.favorites %}
       <a href="{% url 'frontend:project_list' %}#bookmarks"
          class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors">
-        Все {{ fav_ids_total }} →
+        Все {{ counters.favorites }} →
       </a>
       {% endif %}
     </div>

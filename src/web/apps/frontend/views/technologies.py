@@ -1,17 +1,15 @@
 from apps.frontend.decorators import moderator_required
+from apps.frontend.utils import LOGIN_URL
 from apps.projects.models import Project, ProjectStatus, Technology, TechnologyStatus
 from apps.users.utils import user_is_moderator
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 
-_LOGIN_URL = reverse_lazy("frontend:auth")
 
-
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def technology_list(request):
     live_filter = Q(projects__status__in=ProjectStatus.catalog_values())
 
@@ -41,7 +39,7 @@ def technology_list(request):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 @moderator_required
 def technology_moderate(request, pk):
     tech   = get_object_or_404(Technology, pk=pk, status=TechnologyStatus.PENDING)

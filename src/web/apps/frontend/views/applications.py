@@ -1,5 +1,4 @@
 import json
-from functools import wraps
 
 from apps.account.permissions import has_any_role
 from apps.applications.models import Application, ApplicationStatus
@@ -10,7 +9,7 @@ from apps.applications.services import (
     update_motivation,
 )
 from apps.frontend.forms import ApplicationFilterForm, MotivationForm, ReviewApplicationForm
-from apps.frontend.utils import flash_form_errors
+from apps.frontend.utils import LOGIN_URL, flash_form_errors
 from apps.projects.models import Project, ProjectStatus
 from apps.users.models import UserRole
 from django.contrib import messages
@@ -21,15 +20,13 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.views import View
 from django.views.decorators.http import require_POST
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .projects import PAGE_SIZE
-
-_LOGIN_URL = reverse_lazy("frontend:auth")
 
 
 def _require_student(request) -> HttpResponse | None:
@@ -137,12 +134,12 @@ def submit_application(request, pk):
     return response
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def application_list(request):
     return redirect(reverse("frontend:project_list") + "?tab=applications")
 
 
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def project_applications(request, pk):
     project = get_object_or_404(Project.objects.select_related("owner"), pk=pk)
 
@@ -186,7 +183,7 @@ def project_applications(request, pk):
 
 
 @require_POST
-@login_required(login_url=_LOGIN_URL)
+@login_required(login_url=LOGIN_URL)
 def review_application_view(request, pk):
     application = get_object_or_404(
         Application.objects.select_related("project", "project__owner"),
@@ -216,7 +213,7 @@ def review_application_view(request, pk):
 
 
 class WithdrawApplicationView(LoginRequiredMixin, OwnedSubmittedApplicationMixin, View):
-    login_url            = _LOGIN_URL
+    login_url            = LOGIN_URL
     status_error_message = "Отозвать можно только заявку со статусом «На рассмотрении»."
 
     def post(self, request, pk):
@@ -227,7 +224,7 @@ class WithdrawApplicationView(LoginRequiredMixin, OwnedSubmittedApplicationMixin
 
 
 class EditApplicationView(LoginRequiredMixin, OwnedSubmittedApplicationMixin, View):
-    login_url            = _LOGIN_URL
+    login_url            = LOGIN_URL
     template_name        = "frontend/edit_application.html"
     status_error_message = "Редактировать можно только заявку со статусом «На рассмотрении»."
 
