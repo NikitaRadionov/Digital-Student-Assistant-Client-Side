@@ -8,6 +8,7 @@ dependencies = [
     "django>=6.0.4",
     "django-unfold>=0.90.0",
     "djangorestframework>=3.16.1",
+    "djangorestframework-stubs>=3.16.9",
     "django-cors-headers==4.9.0",
     "django-health-check>=4.0.6",
     "psycopg2-binary==2.9.11",
