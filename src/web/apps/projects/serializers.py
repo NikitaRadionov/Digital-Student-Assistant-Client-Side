@@ -27,6 +27,7 @@ class TechnologySerializer(serializers.ModelSerializer):
 
 
 class PrimaryProjectSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="pk", read_only=True)
     owner = UserPublicSerializer(read_only=True)
     moderated_by = UserPublicSerializer(read_only=True)
     edit_url = serializers.SerializerMethodField(read_only=True)
@@ -47,6 +48,7 @@ class PrimaryProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
+            "id",
             "epp",
             "owner",
             "url",
