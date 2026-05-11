@@ -1,5 +1,4 @@
 from apps.account.permissions import IsCpprpOrStaff, IsCustomerOrStaff
-from apps.outbox.services import emit_event
 from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -252,14 +251,7 @@ class ProjectListCreateAPIView(generics.ListCreateAPIView):
         return _apply_project_filters(queryset, self.request.query_params)
 
     def perform_create(self, serializer):
-        project = serializer.save(owner=self.request.user, status=ProjectStatus.DRAFT)
-        emit_event(
-            event_type="project.changed",
-            aggregate_type="project",
-            aggregate_id=project.pk,
-            payload=PrimaryProjectSerializer(project, context={"request": self.request}).data,
-            idempotency_key=f"project.changed:{project.pk}:{project.updated_at.isoformat()}:create",
-        )
+        serializer.save(owner=self.request.user, status=ProjectStatus.DRAFT)
 
 
 project_list_create_view = ProjectListCreateAPIView.as_view()
@@ -337,25 +329,7 @@ class ProjectDestroyAPIView(generics.DestroyAPIView):
         return self.queryset.filter(owner=user)
 
     def perform_destroy(self, instance):
-        deleted_at = timezone.now()
-        aggregate_id = instance.pk
-        snapshot = {
-            "pk": aggregate_id,
-            "title": instance.title,
-            "status": "deleted",
-            "tombstone": True,
-            "created_at": instance.created_at.isoformat() if instance.created_at else None,
-            "updated_at": instance.updated_at.isoformat() if instance.updated_at else None,
-            "deleted_at": deleted_at.isoformat(),
-        }
         super().perform_destroy(instance)
-        emit_event(
-            event_type="project.deleted",
-            aggregate_type="project",
-            aggregate_id=aggregate_id,
-            payload=snapshot,
-            idempotency_key=f"project.deleted:{aggregate_id}:{deleted_at.isoformat()}",
-        )
 
 
 project_destroy_view = ProjectDestroyAPIView.as_view()
@@ -387,35 +361,10 @@ class ProjectRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         return self.queryset.filter(owner=user)
 
     def perform_destroy(self, instance):
-        deleted_at = timezone.now()
-        aggregate_id = instance.pk
-        snapshot = {
-            "pk": aggregate_id,
-            "title": instance.title,
-            "status": "deleted",
-            "tombstone": True,
-            "created_at": instance.created_at.isoformat() if instance.created_at else None,
-            "updated_at": instance.updated_at.isoformat() if instance.updated_at else None,
-            "deleted_at": deleted_at.isoformat(),
-        }
         super().perform_destroy(instance)
-        emit_event(
-            event_type="project.deleted",
-            aggregate_type="project",
-            aggregate_id=aggregate_id,
-            payload=snapshot,
-            idempotency_key=f"project.deleted:{aggregate_id}:{deleted_at.isoformat()}",
-        )
 
     def perform_update(self, serializer):
-        project = serializer.save()
-        emit_event(
-            event_type="project.changed",
-            aggregate_type="project",
-            aggregate_id=project.pk,
-            payload=PrimaryProjectSerializer(project, context={"request": self.request}).data,
-            idempotency_key=f"project.changed:{project.pk}:{project.updated_at.isoformat()}:update",
-        )
+        serializer.save()
 
 
 project_rud_view = ProjectRetrieveUpdateDestroyAPIView.as_view()
@@ -433,13 +382,6 @@ class ProjectSubmitForModerationAPIView(APIView):
     def post(self, request, pk: int):
         project = get_object_or_404(Project.objects.select_related("owner", "epp"), pk=pk)
         submit_project_for_moderation(project=project, actor=request.user)
-        emit_event(
-            event_type="project.changed",
-            aggregate_type="project",
-            aggregate_id=project.pk,
-            payload=PrimaryProjectSerializer(project, context={"request": request}).data,
-            idempotency_key=f"project.changed:{project.pk}:{project.updated_at.isoformat()}:submit",
-        )
         serializer = PrimaryProjectSerializer(project, context={"request": request})
         return Response(serializer.data)
 
@@ -461,13 +403,6 @@ class ProjectModerationAPIView(APIView):
             actor=request.user,
             decision=payload.validated_data["decision"],
             comment=payload.validated_data["comment"],
-        )
-        emit_event(
-            event_type="project.changed",
-            aggregate_type="project",
-            aggregate_id=project.pk,
-            payload=PrimaryProjectSerializer(project, context={"request": request}).data,
-            idempotency_key=f"project.changed:{project.pk}:{project.updated_at.isoformat()}:moderate",
         )
         serializer = PrimaryProjectSerializer(project, context={"request": request})
         return Response(serializer.data)

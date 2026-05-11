@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 from uuid import uuid4
 
+from apps.outbox.models import OutboxEvent
 from apps.projects.models import Project, ProjectStatus, Technology, TechnologyStatus
 from apps.users.models import UserProfile, UserRole
 from django.contrib.auth import get_user_model
@@ -101,6 +102,29 @@ def test_create_project_normalizes_tech_tags_to_lowercase_unique_values():
     assert response.json()["tech_tags"] == ["python", "react native"]
 
 
+def test_api_project_create_emits_one_changed_outbox_event():
+    user = _make_user(role=UserRole.CUSTOMER)
+    client = Client()
+    client.force_login(user)
+    title = _title("API outbox create")
+
+    response = client.post(
+        reverse("api-v1-project-list"),
+        data=json.dumps({"title": title, "description": "created from API"}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    project_id = response.json()["pk"]
+    events = OutboxEvent.objects.filter(
+        event_type="project.changed",
+        aggregate_type="project",
+        aggregate_id=str(project_id),
+    )
+    assert events.count() == 1
+    assert events.get().payload["title"] == title
+
+
 def test_technology_list_returns_approved_autocomplete_matches():
     suffix = uuid4().hex[:8]
     Technology.objects.create(name=f"Auto {suffix} Python", status=TechnologyStatus.APPROVED)
@@ -143,6 +167,34 @@ def test_cpprp_cannot_update_project_even_if_owner():
     )
 
     assert response.status_code == 403
+
+
+def test_api_project_update_emits_one_changed_outbox_event_without_manual_duplicate():
+    owner = _make_user(role=UserRole.CUSTOMER)
+    project = _make_project(
+        title=_title("API outbox update"),
+        owner=owner,
+        status=ProjectStatus.DRAFT,
+    )
+    OutboxEvent.objects.filter(aggregate_id=str(project.pk)).delete()
+    client = Client()
+    client.force_login(owner)
+    new_title = _title("API outbox updated")
+
+    response = client.patch(
+        reverse("api-v1-project-detail", kwargs={"pk": project.pk}),
+        data=json.dumps({"title": new_title}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    events = OutboxEvent.objects.filter(
+        event_type="project.changed",
+        aggregate_type="project",
+        aggregate_id=str(project.pk),
+    )
+    assert events.count() == 1
+    assert events.get().payload["title"] == new_title
 
 
 def _make_project(
@@ -414,10 +466,13 @@ def test_project_delete_emits_tombstone_event():
     assert response.status_code == 204
     tombstone = Project.objects.filter(pk=project.pk).exists()
     assert tombstone is False
-    from apps.outbox.models import OutboxEvent
-
-    event = OutboxEvent.objects.order_by("-id").first()
-    assert event is not None
+    events = OutboxEvent.objects.filter(
+        event_type="project.deleted",
+        aggregate_type="project",
+        aggregate_id=str(project.pk),
+    )
+    assert events.count() == 1
+    event = events.get()
     assert event.event_type == "project.deleted"
     assert event.payload["pk"] == project.pk
     assert event.payload["tombstone"] is True

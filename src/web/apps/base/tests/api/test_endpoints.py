@@ -1,6 +1,15 @@
-# Create your tests here.
+from apps.outbox.models import OutboxConsumerCheckpoint, OutboxEvent
+from apps.projects.models import Project, ProjectStatus
 from django.test import Client, override_settings
 from django.urls import reverse
+
+
+def _metric_value(content: str, metric_name: str, labels: str | None = None) -> float:
+    prefix = metric_name if labels is None else f"{metric_name}{{{labels}}}"
+    for line in content.splitlines():
+        if line.startswith(f"{prefix} "):
+            return float(line.rsplit(" ", 1)[1])
+    raise AssertionError(f"Metric line not found: {prefix}")
 
 
 def test_home_page_ok():
@@ -30,6 +39,59 @@ def test_metrics_root_ok():
     assert r.status_code == 200
     assert "text/plain" in r["Content-Type"]
     assert b"dsa_web_http_requests_total" in r.content
+
+
+def test_metrics_root_exposes_empty_outbox_domain_metrics():
+    OutboxConsumerCheckpoint.objects.all().delete()
+    OutboxEvent.objects.all().delete()
+    c = Client()
+    r = c.get(reverse("metrics-root"))
+
+    content = r.content.decode()
+    assert _metric_value(content, "dsa_web_outbox_latest_event_id") == 0
+    assert _metric_value(content, "dsa_web_outbox_events_total") == 0
+    assert _metric_value(content, "dsa_web_outbox_consumer_checkpoint", 'consumer="ml"') == 0
+    assert _metric_value(content, "dsa_web_outbox_consumer_lag", 'consumer="graph"') == 0
+    assert 'dsa_web_projects_total{status="draft"}' in content
+    assert "dsa_web_faculty_persons_total" in content
+    assert 'dsa_web_project_faculty_matches_total{status="candidate"}' in content
+
+
+def test_metrics_root_exposes_outbox_lag_and_project_counts():
+    OutboxConsumerCheckpoint.objects.all().delete()
+    OutboxEvent.objects.all().delete()
+    project = Project.objects.create(
+        title="Metrics project",
+        description="metrics",
+        status=ProjectStatus.PUBLISHED,
+    )
+    latest_id = OutboxEvent.objects.order_by("-id").values_list("id", flat=True).first()
+    assert latest_id is not None
+    OutboxConsumerCheckpoint.objects.update_or_create(
+        consumer="ml",
+        defaults={"last_acked_event_id": latest_id},
+    )
+    OutboxConsumerCheckpoint.objects.update_or_create(
+        consumer="graph",
+        defaults={"last_acked_event_id": 0},
+    )
+
+    c = Client()
+    r = c.get(reverse("metrics-root"))
+
+    published_count = Project.objects.filter(status=ProjectStatus.PUBLISHED).count()
+    content = r.content.decode()
+    assert _metric_value(content, "dsa_web_outbox_latest_event_id") == latest_id
+    assert _metric_value(content, "dsa_web_outbox_events_total") == OutboxEvent.objects.count()
+    assert (
+        _metric_value(content, "dsa_web_outbox_consumer_checkpoint", 'consumer="ml"')
+        == latest_id
+    )
+    assert _metric_value(content, "dsa_web_outbox_consumer_lag", 'consumer="ml"') == 0
+    assert _metric_value(content, "dsa_web_outbox_consumer_checkpoint", 'consumer="graph"') == 0
+    assert _metric_value(content, "dsa_web_outbox_consumer_lag", 'consumer="graph"') == latest_id
+    assert _metric_value(content, "dsa_web_projects_total", 'status="published"') == published_count
+    assert project.pk is not None
 
 
 @override_settings(SECURE_SSL_REDIRECT=True, SECURE_REDIRECT_EXEMPT=[r"^metrics/$"])

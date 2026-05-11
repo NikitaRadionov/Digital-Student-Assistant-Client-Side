@@ -1,5 +1,4 @@
 from apps.account.permissions import IsCpprpOrStaff, IsStudentOrStaff
-from apps.outbox.services import emit_event
 from apps.users.models import UserRole
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
@@ -14,7 +13,6 @@ from .initiative_transitions import (
     submit_initiative_proposal_for_moderation,
 )
 from .pagination import ProjectListPagination
-from .serializers import PrimaryProjectSerializer
 
 
 def _base_initiative_queryset(user):
@@ -166,23 +164,6 @@ class InitiativeProposalModerationAPIView(APIView):
             decision=payload.validated_data["decision"],
             comment=payload.validated_data["comment"],
         )
-
-        if proposal.published_project_id is not None and proposal.published_project is not None:
-            project = proposal.published_project
-            project_pk = project.pk
-            project_updated_at = project.updated_at
-            if project_pk is None or project_updated_at is None:
-                serializer = InitiativeProposalSerializer(proposal, context={"request": request})
-                return Response(serializer.data)
-            emit_event(
-                event_type="project.changed",
-                aggregate_type="project",
-                aggregate_id=project_pk,
-                payload=PrimaryProjectSerializer(project, context={"request": request}).data,
-                idempotency_key=(
-                    f"project.changed:{project_pk}:{project_updated_at.isoformat()}:initiative-publish"
-                ),
-            )
 
         serializer = InitiativeProposalSerializer(proposal, context={"request": request})
         return Response(serializer.data)
