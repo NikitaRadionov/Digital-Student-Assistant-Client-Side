@@ -8,7 +8,7 @@ from apps.users.models import UserProfile
 from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiTypes, extend_schema
+from drf_spectacular.utils import OpenApiTypes, extend_schema, extend_schema_view
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -102,7 +102,11 @@ def _parse_application_status_filter(status_raw: str | None) -> str | None:
 class AccountMeAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    @extend_schema(responses=AccountOverviewSerializer)
+    @extend_schema(
+        tags=["Account"],
+        summary="Текущий аккаунт",
+        responses=AccountOverviewSerializer,
+    )
     def get(self, request):
         profile = _get_profile(request.user)
         payload = {
@@ -115,7 +119,11 @@ class AccountMeAPIView(APIView):
 class StudentOverviewAPIView(APIView):
     permission_classes = [IsStudentOrStaff]
 
-    @extend_schema(responses=StudentOverviewSerializer)
+    @extend_schema(
+        tags=["Account"],
+        summary="Обзор кабинета студента",
+        responses=StudentOverviewSerializer,
+    )
     def get(self, request):
         role = get_user_role(request.user) or "student"
         profile = _get_profile(request.user)
@@ -143,6 +151,9 @@ class StudentOverviewAPIView(APIView):
         return Response(StudentOverviewSerializer(payload, context={"request": request}).data)
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Account"], summary="Проекты заказчика"),
+)
 class CustomerProjectsAPIView(generics.ListAPIView):
     permission_classes = [IsCustomerOrStaff]
     serializer_class = AccountProjectSerializer
@@ -156,6 +167,9 @@ class CustomerProjectsAPIView(generics.ListAPIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Account"], summary="Заявки на проекты заказчика"),
+)
 class CustomerApplicationsAPIView(generics.ListAPIView):
     permission_classes = [IsCustomerOrStaff]
     serializer_class = AccountApplicationSerializer
@@ -177,6 +191,9 @@ class CustomerApplicationsAPIView(generics.ListAPIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Account"], summary="Очередь модерации ЦППРП"),
+)
 class CPPRPModerationQueueAPIView(generics.ListAPIView):
     permission_classes = [IsCpprpOrStaff]
     serializer_class = AccountProjectSerializer
@@ -195,7 +212,11 @@ class CPPRPApplicationsAPIView(APIView):
     permission_classes = [IsCpprpOrStaff]
     pagination_class = CPPRPApplicationsPagination
 
-    @extend_schema(responses=CPPRPApplicationsOverviewSerializer)
+    @extend_schema(
+        tags=["Account"],
+        summary="Сводка заявок ЦППРП",
+        responses=CPPRPApplicationsOverviewSerializer,
+    )
     def get(self, request):
         status_filter = _parse_application_status_filter(request.query_params.get("status"))
         queryset = Application.objects.select_related("applicant").prefetch_related(
@@ -221,6 +242,10 @@ class CPPRPApplicationsAPIView(APIView):
         return Response(payload)
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Account"], summary="Список дедлайнов платформы"),
+    post=extend_schema(tags=["Account"], summary="Создать дедлайн платформы"),
+)
 class PlatformDeadlineListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PlatformDeadlineSerializer
     permission_classes = [IsCpprpOrStaff]
@@ -240,6 +265,10 @@ class PlatformDeadlineListCreateAPIView(generics.ListCreateAPIView):
         return response
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Account"], summary="Список шаблонов документов"),
+    post=extend_schema(tags=["Account"], summary="Создать шаблон документа"),
+)
 class DocumentTemplateListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = DocumentTemplateSerializer
     permission_classes = [IsCpprpOrStaff]
@@ -251,7 +280,11 @@ class DocumentTemplateListCreateAPIView(generics.ListCreateAPIView):
 class DocumentTemplateDownloadAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    @extend_schema(responses={(302, "text/html"): OpenApiTypes.STR})
+    @extend_schema(
+        tags=["Account"],
+        summary="Скачать шаблон документа",
+        responses={(302, "text/html"): OpenApiTypes.STR},
+    )
     def get(self, request, pk: int):
         queryset = DocumentTemplate.objects.filter(is_active=True)
         if not request.user.is_staff:
@@ -271,7 +304,11 @@ class DocumentTemplateDownloadAPIView(APIView):
 class CPPRPProjectsExportAPIView(APIView):
     permission_classes = [IsCpprpOrStaff]
 
-    @extend_schema(responses={(200, "text/csv"): OpenApiTypes.BINARY})
+    @extend_schema(
+        tags=["Account"],
+        summary="Экспорт проектов в CSV",
+        responses={(200, "text/csv"): OpenApiTypes.BINARY},
+    )
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="projects-export.csv"'
@@ -307,7 +344,11 @@ class CPPRPProjectsExportAPIView(APIView):
 class CPPRPApplicationsExportAPIView(APIView):
     permission_classes = [IsCpprpOrStaff]
 
-    @extend_schema(responses={(200, "text/csv"): OpenApiTypes.BINARY})
+    @extend_schema(
+        tags=["Account"],
+        summary="Экспорт заявок в CSV",
+        responses={(200, "text/csv"): OpenApiTypes.BINARY},
+    )
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="applications-export.csv"'

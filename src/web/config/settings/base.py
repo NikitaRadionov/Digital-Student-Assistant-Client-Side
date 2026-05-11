@@ -355,8 +355,34 @@ ALLOWED_CORPORATE_EMAIL_DOMAINS = [
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Digital Student Assistant API",
-    "DESCRIPTION": "Versioned REST API for web and future service integrations.",
+    "DESCRIPTION": (
+        "REST API цифрового ассистента студента: проекты, заявки, "
+        "личные кабинеты, рекомендации, импорт и сервисные события."
+    ),
     "VERSION": "1.0.0",
+    "TAGS": [
+        {"name": "Auth", "description": "Аутентификация и получение токенов."},
+        {"name": "System", "description": "Healthcheck, readiness и служебные endpoints."},
+        {"name": "Account", "description": "Личные кабинеты студента, заказчика и ЦППРП."},
+        {"name": "Applications", "description": "Подача, просмотр и модерация заявок."},
+        {
+            "name": "Projects",
+            "description": "Каталог проектов и модерация проектных предложений.",
+        },
+        {"name": "Users", "description": "Профиль пользователя и избранные проекты."},
+        {"name": "Recommendations", "description": "Поиск, рекомендации и переиндексация."},
+        {"name": "Imports", "description": "Импорт данных из внешних источников."},
+        {"name": "Outbox", "description": "События для внешних ML/graph-сервисов."},
+        {"name": "Faculty", "description": "Данные о преподавателях и связанных проектах."},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "filter": True,
+        "docExpansion": "none",
+        "defaultModelsExpandDepth": 1,
+        "displayRequestDuration": True,
+    },
     "PREPROCESSING_HOOKS": [
         "config.schema.public_api_only_preprocessing_hook",
     ],

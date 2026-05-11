@@ -62,6 +62,8 @@ class InitiativeProposalModerationInputSerializer(serializers.Serializer):
 
 @extend_schema_view(
     get=extend_schema(
+        tags=["Projects"],
+        summary="Список инициативных предложений",
         parameters=[
             OpenApiParameter(
                 name="status",
@@ -71,7 +73,8 @@ class InitiativeProposalModerationInputSerializer(serializers.Serializer):
                 description="Filter by initiative proposal status.",
             )
         ]
-    )
+    ),
+    post=extend_schema(tags=["Projects"], summary="Создать инициативное предложение"),
 )
 class InitiativeProposalListCreateAPIView(generics.ListCreateAPIView):
     queryset = InitiativeProposal.objects.select_related(
@@ -111,6 +114,12 @@ class InitiativeProposalListCreateAPIView(generics.ListCreateAPIView):
 initiative_proposal_list_create_view = InitiativeProposalListCreateAPIView.as_view()
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Projects"], summary="Детали инициативного предложения"),
+    patch=extend_schema(tags=["Projects"], summary="Обновить инициативу частично"),
+    put=extend_schema(tags=["Projects"], summary="Полностью обновить инициативу"),
+    delete=extend_schema(tags=["Projects"], summary="Удалить инициативу"),
+)
 class InitiativeProposalRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = InitiativeProposal.objects.select_related(
         "owner", "moderated_by", "published_project"
@@ -177,7 +186,12 @@ initiative_proposal_rud_view = InitiativeProposalRetrieveUpdateDestroyAPIView.as
 class InitiativeProposalSubmitForModerationAPIView(APIView):
     permission_classes = [IsStudentOrStaff]
 
-    @extend_schema(request=None, responses=InitiativeProposalSerializer)
+    @extend_schema(
+        tags=["Projects"],
+        summary="Отправить инициативу на модерацию",
+        request=None,
+        responses=InitiativeProposalSerializer,
+    )
     def post(self, request, pk: int):
         proposal = get_object_or_404(
             InitiativeProposal.objects.select_related("owner", "moderated_by", "published_project"),
@@ -192,6 +206,8 @@ class InitiativeProposalModerationAPIView(APIView):
     permission_classes = [IsCpprpOrStaff]
 
     @extend_schema(
+        tags=["Projects"],
+        summary="Рассмотреть инициативное предложение",
         request=InitiativeProposalModerationInputSerializer,
         responses=InitiativeProposalSerializer,
     )

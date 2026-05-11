@@ -2,6 +2,7 @@ from typing import Any, cast
 
 from apps.users.email_verification import pending_email_verification_user_for_credentials
 from django.conf import settings
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -23,6 +24,7 @@ class ProviderAwareObtainAuthTokenView(ObtainAuthToken):
 
 
 class VerifiedObtainAuthTokenView(ProviderAwareObtainAuthTokenView):
+    @extend_schema(tags=["Auth"], summary="Получить токен доступа")
     def post(self, request, *args, **kwargs):
         if not getattr(settings, "AUTH_ENABLE_LOCAL_TOKEN_FALLBACK", True):
             return Response(

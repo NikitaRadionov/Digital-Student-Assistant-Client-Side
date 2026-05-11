@@ -150,6 +150,8 @@ def _apply_project_filters(queryset, params):
 
 @extend_schema_view(
     get=extend_schema(
+        tags=["Projects"],
+        summary="Список проектов",
         parameters=[
             OpenApiParameter(
                 name="status",
@@ -234,7 +236,8 @@ def _apply_project_filters(queryset, params):
                 location=OpenApiParameter.QUERY,
             ),
         ]
-    )
+    ),
+    post=extend_schema(tags=["Projects"], summary="Создать проект"),
 )
 class ProjectListCreateAPIView(generics.ListCreateAPIView):
     queryset = Project.objects.select_related("owner", "epp")
@@ -272,6 +275,9 @@ class ProjectListCreateAPIView(generics.ListCreateAPIView):
 project_list_create_view = ProjectListCreateAPIView.as_view()
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Projects"], summary="Список технологий"),
+)
 class TechnologyListAPIView(generics.ListAPIView):
     serializer_class = TechnologySerializer
     permission_classes = [permissions.AllowAny]
@@ -367,6 +373,12 @@ class ProjectDestroyAPIView(generics.DestroyAPIView):
 project_destroy_view = ProjectDestroyAPIView.as_view()
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Projects"], summary="Детали проекта"),
+    patch=extend_schema(tags=["Projects"], summary="Обновить проект частично"),
+    put=extend_schema(tags=["Projects"], summary="Полностью обновить проект"),
+    delete=extend_schema(tags=["Projects"], summary="Удалить проект"),
+)
 class ProjectRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Project.objects.select_related("owner", "epp").annotate(
         applications_count=Count("applications")
@@ -441,7 +453,12 @@ class ProjectModerationInputSerializer(serializers.Serializer):
 class ProjectSubmitForModerationAPIView(APIView):
     permission_classes = [IsCustomerOrStaff]
 
-    @extend_schema(request=None, responses=PrimaryProjectSerializer)
+    @extend_schema(
+        tags=["Projects"],
+        summary="Отправить проект на модерацию",
+        request=None,
+        responses=PrimaryProjectSerializer,
+    )
     def post(self, request, pk: int):
         project = get_object_or_404(Project.objects.select_related("owner", "epp"), pk=pk)
         submit_project_for_moderation(project=project, actor=request.user)
@@ -453,6 +470,8 @@ class ProjectModerationAPIView(APIView):
     permission_classes = [IsCpprpOrStaff]
 
     @extend_schema(
+        tags=["Projects"],
+        summary="Рассмотреть проект",
         request=ProjectModerationInputSerializer,
         responses=PrimaryProjectSerializer,
     )

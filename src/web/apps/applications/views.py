@@ -3,7 +3,7 @@ from apps.notifications.services import NotificationSpec, create_notifications
 from apps.outbox.services import emit_event
 from apps.projects.models import ProjectStatus
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics
 from rest_framework import serializers as drf_serializers
 from rest_framework.exceptions import ValidationError
@@ -15,6 +15,10 @@ from .serializers import ApplicationSerializer
 from .transitions import review_application
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Applications"], summary="Список заявок"),
+    post=extend_schema(tags=["Applications"], summary="Подать заявку на проект"),
+)
 class ApplicationListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = ApplicationSerializer
 
@@ -86,6 +90,12 @@ class ApplicationListCreateAPIView(generics.ListCreateAPIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(tags=["Applications"], summary="Получить заявку"),
+    patch=extend_schema(tags=["Applications"], summary="Обновить заявку частично"),
+    put=extend_schema(tags=["Applications"], summary="Полностью обновить заявку"),
+    delete=extend_schema(tags=["Applications"], summary="Удалить заявку"),
+)
 class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ApplicationSerializer
     permission_classes = [IsStudentOrStaff]
@@ -160,6 +170,8 @@ class ApplicationReviewAPIView(APIView):
     permission_classes = [IsCustomerOrStaff]
 
     @extend_schema(
+        tags=["Applications"],
+        summary="Рассмотреть заявку",
         request=ApplicationReviewInputSerializer,
         responses=ApplicationSerializer,
     )
