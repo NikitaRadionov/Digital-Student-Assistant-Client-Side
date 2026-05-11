@@ -1,4 +1,5 @@
 from apps.account.permissions import IsCpprpOrStaff, IsCustomerOrStaff
+from apps.notifications.services import NotificationSpec, create_notifications
 from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -251,7 +252,21 @@ class ProjectListCreateAPIView(generics.ListCreateAPIView):
         return _apply_project_filters(queryset, self.request.query_params)
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user, status=ProjectStatus.DRAFT)
+        project = serializer.save(owner=self.request.user, status=ProjectStatus.DRAFT)
+        create_notifications(
+            recipients=[project.owner],
+            spec=NotificationSpec(
+                event_type="project.created",
+                title="Проект создан",
+                body="Проект создан в статусе «черновик». Вы можете отправить его на модерацию.",
+                target_type="project",
+                target_id=str(project.pk),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"project.created:\
+                    {project.pk}:\
+                        {project.created_at.isoformat() if project.created_at else ''}",
+            ),
+        )
 
 
 project_list_create_view = ProjectListCreateAPIView.as_view()
@@ -329,7 +344,24 @@ class ProjectDestroyAPIView(generics.DestroyAPIView):
         return self.queryset.filter(owner=user)
 
     def perform_destroy(self, instance):
+        owner = getattr(instance, "owner", None)
+        project_id = getattr(instance, "pk", None)
+        updated_at = getattr(instance, "updated_at", None)
         super().perform_destroy(instance)
+        create_notifications(
+            recipients=[owner],
+            spec=NotificationSpec(
+                event_type="project.deleted",
+                title="Проект удалён",
+                body="Проект был удалён.",
+                target_type="project",
+                target_id=str(project_id),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=(
+                    f"project.deleted:{project_id}:{updated_at.isoformat() if updated_at else ''}"
+                ),
+            ),
+        )
 
 
 project_destroy_view = ProjectDestroyAPIView.as_view()
@@ -361,10 +393,41 @@ class ProjectRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         return self.queryset.filter(owner=user)
 
     def perform_destroy(self, instance):
+        owner = getattr(instance, "owner", None)
+        project_id = getattr(instance, "pk", None)
+        updated_at = getattr(instance, "updated_at", None)
         super().perform_destroy(instance)
+        create_notifications(
+            recipients=[owner],
+            spec=NotificationSpec(
+                event_type="project.deleted",
+                title="Проект удалён",
+                body="Проект был удалён.",
+                target_type="project",
+                target_id=str(project_id),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=(
+                    f"project.deleted:{project_id}:{updated_at.isoformat() if updated_at else ''}"
+                ),
+            ),
+        )
 
     def perform_update(self, serializer):
-        serializer.save()
+        project = serializer.save()
+        create_notifications(
+            recipients=[project.owner],
+            spec=NotificationSpec(
+                event_type="project.updated",
+                title="Проект обновлён",
+                body="Данные проекта были обновлены.",
+                target_type="project",
+                target_id=str(project.pk),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"project.updated:\
+                    {project.pk}:\
+                        {project.updated_at.isoformat() if project.updated_at else ''}",
+            ),
+        )
 
 
 project_rud_view = ProjectRetrieveUpdateDestroyAPIView.as_view()

@@ -1,4 +1,5 @@
 from apps.account.permissions import IsCustomerOrStaff, IsStudentOrStaff
+from apps.notifications.services import NotificationSpec, create_notifications
 from apps.outbox.services import emit_event
 from apps.projects.models import ProjectStatus
 from django.utils import timezone
@@ -48,6 +49,34 @@ class ApplicationListCreateAPIView(generics.ListCreateAPIView):
             applicant=self.request.user,
             status=ApplicationStatus.SUBMITTED,
         )
+        create_notifications(
+            recipients=[application.applicant],
+            spec=NotificationSpec(
+                event_type="application.created",
+                title="Заявка отправлена",
+                body="Ваша заявка на участие в проекте отправлена.",
+                target_type="application",
+                target_id=str(application.pk),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"application.created:\
+                    {application.pk}:\
+                        {application.created_at.isoformat() if application.created_at else ''}",
+            ),
+        )
+        create_notifications(
+            recipients=[getattr(application.project, "owner", None)],
+            spec=NotificationSpec(
+                event_type="application.received",
+                title="Новая заявка на проект",
+                body="Поступила новая заявка на ваш проект.",
+                target_type="application",
+                target_id=str(application.pk),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"application.received:\
+                    {application.pk}:\
+                        {application.created_at.isoformat() if application.created_at else ''}",
+            ),
+        )
         emit_event(
             event_type="application.changed",
             aggregate_type="application",
@@ -71,6 +100,9 @@ class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
 
     def perform_destroy(self, instance):
         aggregate_id = instance.pk
+        applicant = getattr(instance, "applicant", None)
+        project_owner = getattr(getattr(instance, "project", None), "owner", None)
+        updated_at = getattr(instance, "updated_at", None)
         payload = {
             "id": aggregate_id,
             "project": instance.project_id,
@@ -82,6 +114,34 @@ class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
             "deleted_at": timezone.now().isoformat(),
         }
         super().perform_destroy(instance)
+        create_notifications(
+            recipients=[applicant],
+            spec=NotificationSpec(
+                event_type="application.deleted",
+                title="Заявка удалена",
+                body="Ваша заявка была удалена (отозвана).",
+                target_type="application",
+                target_id=str(aggregate_id),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"application.deleted:\
+                    {aggregate_id}:\
+                        {updated_at.isoformat() if updated_at else payload['deleted_at']}",
+            ),
+        )
+        create_notifications(
+            recipients=[project_owner],
+            spec=NotificationSpec(
+                event_type="application.withdrawn",
+                title="Заявка отозвана",
+                body="Заявка студента была отозвана.",
+                target_type="application",
+                target_id=str(aggregate_id),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"application.withdrawn:\
+                    {aggregate_id}:\
+                        {updated_at.isoformat() if updated_at else payload['deleted_at']}",
+            ),
+        )
         emit_event(
             event_type="application.deleted",
             aggregate_type="application",
@@ -116,6 +176,46 @@ class ApplicationReviewAPIView(APIView):
             actor=request.user,
             decision=payload.validated_data["decision"],
             comment=payload.validated_data["comment"],
+        )
+        decision = payload.validated_data["decision"]
+        if decision == "accept":
+            title = "Заявка принята"
+            event_type = "application.review.accepted"
+            body = "Ваша заявка принята."
+        else:
+            title = "Заявка отклонена"
+            event_type = "application.review.rejected"
+            body = "Ваша заявка отклонена."
+        comment_text = (payload.validated_data.get("comment") or "").strip()
+        if comment_text:
+            body = f"{body}\n\nКомментарий: {comment_text}"
+        create_notifications(
+            recipients=[application.applicant],
+            spec=NotificationSpec(
+                event_type=event_type,
+                title=title,
+                body=body,
+                target_type="application",
+                target_id=str(application.pk),
+                actor_id=getattr(request.user, "id", None),
+                dedupe_key=f"{event_type}:\
+                    {application.pk}:\
+                        {application.reviewed_at.isoformat() if application.reviewed_at else ''}",
+            ),
+        )
+        create_notifications(
+            recipients=[getattr(application.project, "owner", None)],
+            spec=NotificationSpec(
+                event_type="application.reviewed",
+                title="Заявка рассмотрена",
+                body="Вы приняли решение по заявке на проект.",
+                target_type="application",
+                target_id=str(application.pk),
+                actor_id=getattr(request.user, "id", None),
+                dedupe_key=f"application.reviewed:\
+                    {application.pk}:\
+                        {application.reviewed_at.isoformat() if application.reviewed_at else ''}",
+            ),
         )
         emit_event(
             event_type="application.changed",

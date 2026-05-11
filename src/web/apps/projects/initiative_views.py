@@ -1,4 +1,5 @@
 from apps.account.permissions import IsCpprpOrStaff, IsStudentOrStaff
+from apps.notifications.services import NotificationSpec, create_notifications
 from apps.users.models import UserRole
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
@@ -89,7 +90,22 @@ class InitiativeProposalListCreateAPIView(generics.ListCreateAPIView):
         return _apply_initiative_filters(queryset, self.request.query_params)
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user, status=InitiativeProposalStatus.DRAFT)
+        proposal = serializer.save(owner=self.request.user, status=InitiativeProposalStatus.DRAFT)
+        create_notifications(
+            recipients=[proposal.owner],
+            spec=NotificationSpec(
+                event_type="initiative.created",
+                title="Инициатива создана",
+                body="Инициатива создана в статусе «черновик». \
+                    Вы можете отправить её на модерацию.",
+                target_type="initiative",
+                target_id=str(proposal.pk),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"initiative.created:\
+                    {proposal.pk}:\
+                        {proposal.created_at.isoformat() if proposal.created_at else ''}",
+            ),
+        )
 
 
 initiative_proposal_list_create_view = InitiativeProposalListCreateAPIView.as_view()
@@ -117,11 +133,42 @@ class InitiativeProposalRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDest
 
     def perform_update(self, serializer):
         _ensure_initiative_proposal_editable(serializer.instance)
-        serializer.save()
+        proposal = serializer.save()
+        create_notifications(
+            recipients=[proposal.owner],
+            spec=NotificationSpec(
+                event_type="initiative.updated",
+                title="Инициатива обновлена",
+                body="Данные инициативы были обновлены.",
+                target_type="initiative",
+                target_id=str(proposal.pk),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"initiative.updated:\
+                    {proposal.pk}:\
+                        {proposal.updated_at.isoformat() if proposal.updated_at else ''}",
+            ),
+        )
 
     def perform_destroy(self, instance):
         _ensure_initiative_proposal_editable(instance)
+        owner = getattr(instance, "owner", None)
+        proposal_id = getattr(instance, "pk", None)
+        updated_at = getattr(instance, "updated_at", None)
         super().perform_destroy(instance)
+        create_notifications(
+            recipients=[owner],
+            spec=NotificationSpec(
+                event_type="initiative.deleted",
+                title="Инициатива удалена",
+                body="Инициатива была удалена.",
+                target_type="initiative",
+                target_id=str(proposal_id),
+                actor_id=getattr(self.request.user, "id", None),
+                dedupe_key=f"initiative.deleted:\
+                    {proposal_id}:\
+                        {updated_at.isoformat() if updated_at else ''}",
+            ),
+        )
 
 
 initiative_proposal_rud_view = InitiativeProposalRetrieveUpdateDestroyAPIView.as_view()

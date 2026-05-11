@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from apps.applications.models import Application, ApplicationStatus
+from apps.notifications.models import Notification
 from apps.projects.models import Project, ProjectStatus
 from apps.users.models import UserProfile, UserRole
 from django.contrib.auth import get_user_model
@@ -49,6 +50,12 @@ def test_application_create_forces_submitted_status():
     assert response.status_code == 201
     application = Application.objects.get(pk=response.json()["id"])
     assert application.status == ApplicationStatus.SUBMITTED
+    assert Notification.objects.filter(
+        recipient=student, event_type="application.created", target_type="application"
+    ).exists()
+    assert Notification.objects.filter(
+        recipient=owner, event_type="application.received", target_type="application"
+    ).exists()
 
 
 def test_application_create_rejected_for_non_catalog_project():
@@ -114,6 +121,12 @@ def test_project_owner_can_accept_application():
     assert application.status == ApplicationStatus.ACCEPTED
     assert project.accepted_participants_count == 1
     assert project.status == ProjectStatus.PUBLISHED
+    assert Notification.objects.filter(
+        recipient=student,
+        event_type="application.review.accepted",
+        target_type="application",
+        target_id=str(application.pk),
+    ).exists()
 
 
 def test_application_reject_requires_comment():
@@ -265,6 +278,12 @@ def test_application_delete_emits_tombstone_event():
 
     assert response.status_code == 204
     assert Application.objects.filter(pk=application.pk).exists() is False
+    assert Notification.objects.filter(
+        recipient=student,
+        event_type="application.deleted",
+        target_type="application",
+        target_id=str(application.pk),
+    ).exists()
 
     from apps.outbox.models import OutboxEvent
 

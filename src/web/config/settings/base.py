@@ -140,6 +140,7 @@ INSTALLED_APPS = [
     "apps.search",
     "apps.imports",
     "apps.outbox",
+    "apps.notifications",
     "apps.recs",
     "apps.faculty",
     "apps.frontend",
