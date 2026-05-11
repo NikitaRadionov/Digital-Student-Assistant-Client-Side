@@ -1,163 +1,81 @@
-"""
-CPPRP administration dashboard.
-
-Provides a unified tabbed interface for:
-  - Overview (stats across the whole platform)
-  - All applications (paginated, filterable)
-  - Platform deadlines (CRUD)
-  - Document templates (CRUD)
-  - CSV exports
-"""
-
 import csv
-import logging
-import re
 
 from apps.account.models import DeadlineAudience, DocumentTemplate, PlatformDeadline
 from apps.applications.models import Application, ApplicationStatus
 from apps.frontend.decorators import moderator_required
+from apps.frontend.forms import DeadlineForm, ExternalAllowlistBulkForm, TemplateForm
+from apps.frontend.utils import flash_form_errors
 from apps.projects.models import Project, ProjectStatus
 from apps.users.models import (
     ExternalAccessAllowlist,
     ExternalAccessRequest,
     ExternalAccessRequestStatus,
+    UserProfile,
     UserRole,
-    normalize_email,
 )
-from django import forms as dj_forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-logger = logging.getLogger(__name__)
-
+_LOGIN_URL      = reverse_lazy("frontend:auth")
 _APPS_PAGE_SIZE = 20
-_EXTERNAL_EMAIL_SPLIT_RE = re.compile(r"[\s,;]+")
 
 
-# ---------------------------------------------------------------------------
-# Forms
-# ---------------------------------------------------------------------------
-
-class DeadlineForm(dj_forms.Form):
-    slug = dj_forms.SlugField(
-        max_length=80,
-        error_messages={"required": "Введите slug (латиница, цифры, дефис)."},
-    )
-    title = dj_forms.CharField(
-        max_length=255,
-        error_messages={"required": "Название обязательно."},
-    )
-    audience = dj_forms.ChoiceField(
-        choices=DeadlineAudience.choices,
-    )
-    description = dj_forms.CharField(widget=dj_forms.Textarea, required=False)
-    starts_at = dj_forms.DateTimeField(
-        required=False,
-        widget=dj_forms.DateTimeInput(attrs={"type": "datetime-local"}),
-        input_formats=["%Y-%m-%dT%H:%M"],
-    )
-    ends_at = dj_forms.DateTimeField(
-        required=False,
-        widget=dj_forms.DateTimeInput(attrs={"type": "datetime-local"}),
-        input_formats=["%Y-%m-%dT%H:%M"],
-    )
-    is_active = dj_forms.BooleanField(required=False, initial=True)
+def _cpprp_tab_redirect(tab: str) -> HttpResponse:
+    return redirect(reverse("frontend:cpprp_dashboard") + f"?tab={tab}")
 
 
-class TemplateForm(dj_forms.Form):
-    slug = dj_forms.SlugField(
-        max_length=80,
-        error_messages={"required": "Введите slug."},
-    )
-    title = dj_forms.CharField(
-        max_length=255,
-        error_messages={"required": "Название обязательно."},
-    )
-    url = dj_forms.URLField(
-        error_messages={"required": "URL обязателен.", "invalid": "Введите корректный URL."},
-    )
-    audience = dj_forms.ChoiceField(
-        choices=DeadlineAudience.choices,
-    )
-    description = dj_forms.CharField(widget=dj_forms.Textarea, required=False)
-    is_active = dj_forms.BooleanField(required=False, initial=True)
-
-
-class ExternalAllowlistBulkForm(dj_forms.Form):
-    emails = dj_forms.CharField(
-        widget=dj_forms.Textarea,
-        error_messages={"required": "Укажите хотя бы один email."},
-    )
-    allowed_role = dj_forms.ChoiceField(
-        choices=[(UserRole.CUSTOMER, "Customer")],
-        initial=UserRole.CUSTOMER,
-    )
-    note = dj_forms.CharField(required=False, max_length=255)
-
-
-def _extract_external_email_list(raw: str) -> list[str]:
-    values = []
-    seen: set[str] = set()
-    for part in _EXTERNAL_EMAIL_SPLIT_RE.split(raw or ""):
-        email = normalize_email(part)
-        if not email or email in seen:
-            continue
-        seen.add(email)
-        values.append(email)
-    return values
-
-
-# ---------------------------------------------------------------------------
-# Dashboard (main view)
-# ---------------------------------------------------------------------------
-
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_dashboard(request):
-    """CPPRP administration hub — tabbed page."""
-    # ── Stats ────────────────────────────────────────────────────────────────
-    project_counts = {
-        s: Project.objects.filter(status=s).count()
-        for s in [
+    project_counts = Project.objects.aggregate(
+        **{s: Count("pk", filter=Q(status=s)) for s in [
             ProjectStatus.PUBLISHED,
             ProjectStatus.ON_MODERATION,
             ProjectStatus.STAFFED,
             ProjectStatus.DRAFT,
-        ]
-    }
-    app_totals = {
-        "submitted": Application.objects.filter(status=ApplicationStatus.SUBMITTED).count(),
-        "accepted": Application.objects.filter(status=ApplicationStatus.ACCEPTED).count(),
-        "rejected": Application.objects.filter(status=ApplicationStatus.REJECTED).count(),
-    }
+        ]}
+    )
+
+    app_totals = Application.objects.aggregate(
+        submitted=Count("pk", filter=Q(status=ApplicationStatus.SUBMITTED)),
+        accepted=Count("pk",  filter=Q(status=ApplicationStatus.ACCEPTED)),
+        rejected=Count("pk",  filter=Q(status=ApplicationStatus.REJECTED)),
+    )
     app_totals["total"] = sum(app_totals.values())
 
-    # ── Applications tab ─────────────────────────────────────────────────────
+    active_students_count = (
+        Application.objects
+        .filter(status=ApplicationStatus.ACCEPTED)
+        .values("applicant_id")
+        .distinct()
+        .count()
+    )
+    total_students_count = UserProfile.objects.filter(role=UserRole.STUDENT).count()
+
     app_status_filter = request.GET.get("status", "").strip()
-    app_page = request.GET.get("page", 1)
+    app_page          = request.GET.get("page", 1)
 
     apps_qs = (
-        Application.objects.select_related("applicant", "project")
+        Application.objects
+        .select_related("applicant", "project")
         .order_by("-created_at")
     )
     if app_status_filter and app_status_filter in ApplicationStatus.values:
         apps_qs = apps_qs.filter(status=app_status_filter)
 
     apps_paginator = Paginator(apps_qs, _APPS_PAGE_SIZE)
-    apps_page_obj = apps_paginator.get_page(app_page)
+    apps_page_obj  = apps_paginator.get_page(app_page)
 
-    # ── Deadlines tab ────────────────────────────────────────────────────────
     deadlines = list(PlatformDeadline.objects.order_by("ends_at", "title"))
-    deadline_form = DeadlineForm()
-
-    # ── Templates tab ────────────────────────────────────────────────────────
     templates = list(DocumentTemplate.objects.order_by("title"))
-    template_form = TemplateForm()
     external_pending_requests = list(
         ExternalAccessRequest.objects.filter(status=ExternalAccessRequestStatus.PENDING)
         .order_by("created_at")
@@ -168,145 +86,132 @@ def cpprp_dashboard(request):
     external_allowlist = list(
         ExternalAccessAllowlist.objects.select_related("approved_by").order_by("email")[:50]
     )
-    external_allowlist_form = ExternalAllowlistBulkForm()
 
-    context = {
-        "project_counts": project_counts,
-        "app_totals": app_totals,
-        "apps_page_obj": apps_page_obj,
-        "app_status_filter": app_status_filter,
-        "deadlines": deadlines,
-        "deadline_form": deadline_form,
-        "templates": templates,
-        "template_form": template_form,
+    return render(request, "frontend/cpprp_dashboard.html", {
+        "project_counts":        project_counts,
+        "app_totals":            app_totals,
+        "active_students_count": active_students_count,
+        "total_students_count":  total_students_count,
+        "apps_page_obj":         apps_page_obj,
+        "app_status_filter":     app_status_filter,
+        "deadlines":             deadlines,
+        "deadline_form":         DeadlineForm(),
+        "templates":             templates,
+        "template_form":         TemplateForm(),
         "external_pending_requests": external_pending_requests,
         "external_recent_requests": external_recent_requests,
         "external_allowlist": external_allowlist,
-        "external_allowlist_form": external_allowlist_form,
-        "ApplicationStatus": ApplicationStatus,
-        "ProjectStatus": ProjectStatus,
-        "DeadlineAudience": DeadlineAudience,
+        "external_allowlist_form": ExternalAllowlistBulkForm(),
+        "ApplicationStatus":     ApplicationStatus,
+        "ProjectStatus":         ProjectStatus,
+        "DeadlineAudience":      DeadlineAudience,
         "ExternalAccessRequestStatus": ExternalAccessRequestStatus,
-    }
-    return render(request, "frontend/cpprp_dashboard.html", context)
+    })
 
-
-# ---------------------------------------------------------------------------
-# Deadlines CRUD
-# ---------------------------------------------------------------------------
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_deadline_create(request):
     form = DeadlineForm(request.POST)
     if form.is_valid():
         d = form.cleaned_data
         try:
-            PlatformDeadline.objects.create(
-                slug=d["slug"],
-                title=d["title"],
-                audience=d["audience"],
-                description=d.get("description", ""),
-                starts_at=d.get("starts_at"),
-                ends_at=d.get("ends_at"),
-                is_active=d.get("is_active", True),
-            )
+            with transaction.atomic():
+                PlatformDeadline.objects.create(
+                    slug=d["slug"],
+                    title=d["title"],
+                    audience=d["audience"],
+                    description=d.get("description", ""),
+                    starts_at=d.get("starts_at"),
+                    ends_at=d.get("ends_at"),
+                    is_active=d.get("is_active", True),
+                )
             messages.success(request, f"Дедлайн «{d['title']}» создан.")
-        except Exception:
-            messages.error(request, "Не удалось создать дедлайн (возможно, slug уже занят).")
+        except IntegrityError:
+            messages.error(request, "Не удалось создать дедлайн — такой slug уже занят.")
     else:
-        for field, errs in form.errors.items():
-            messages.error(request, f"{field}: {errs[0]}")
-    return redirect("/cpprp/?tab=deadlines")
+        flash_form_errors(request, form)
+    return _cpprp_tab_redirect("deadlines")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_deadline_toggle(request, pk):
-    dl = get_object_or_404(PlatformDeadline, pk=pk)
+    dl          = get_object_or_404(PlatformDeadline, pk=pk)
     dl.is_active = not dl.is_active
     dl.save(update_fields=["is_active", "updated_at"])
     state = "активирован" if dl.is_active else "деактивирован"
     messages.success(request, f"Дедлайн «{dl.title}» {state}.")
-    return redirect("/cpprp/?tab=deadlines")
+    return _cpprp_tab_redirect("deadlines")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_deadline_delete(request, pk):
-    dl = get_object_or_404(PlatformDeadline, pk=pk)
+    dl    = get_object_or_404(PlatformDeadline, pk=pk)
     title = dl.title
     dl.delete()
     messages.success(request, f"Дедлайн «{title}» удалён.")
-    return redirect("/cpprp/?tab=deadlines")
+    return _cpprp_tab_redirect("deadlines")
 
-
-# ---------------------------------------------------------------------------
-# Templates CRUD
-# ---------------------------------------------------------------------------
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_template_create(request):
     form = TemplateForm(request.POST)
     if form.is_valid():
         d = form.cleaned_data
         try:
-            DocumentTemplate.objects.create(
-                slug=d["slug"],
-                title=d["title"],
-                url=d["url"],
-                audience=d["audience"],
-                description=d.get("description", ""),
-                is_active=d.get("is_active", True),
-            )
+            with transaction.atomic():
+                DocumentTemplate.objects.create(
+                    slug=d["slug"],
+                    title=d["title"],
+                    url=d["url"],
+                    audience=d["audience"],
+                    description=d.get("description", ""),
+                    is_active=d.get("is_active", True),
+                )
             messages.success(request, f"Шаблон «{d['title']}» добавлен.")
-        except Exception:
-            messages.error(request, "Не удалось добавить шаблон (возможно, slug уже занят).")
+        except IntegrityError:
+            messages.error(request, "Не удалось добавить шаблон — такой slug уже занят.")
     else:
-        for field, errs in form.errors.items():
-            messages.error(request, f"{field}: {errs[0]}")
-    return redirect("/cpprp/?tab=templates")
+        flash_form_errors(request, form)
+    return _cpprp_tab_redirect("templates")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_template_toggle(request, pk):
-    tpl = get_object_or_404(DocumentTemplate, pk=pk)
+    tpl          = get_object_or_404(DocumentTemplate, pk=pk)
     tpl.is_active = not tpl.is_active
     tpl.save(update_fields=["is_active", "updated_at"])
     state = "активирован" if tpl.is_active else "деактивирован"
     messages.success(request, f"Шаблон «{tpl.title}» {state}.")
-    return redirect("/cpprp/?tab=templates")
+    return _cpprp_tab_redirect("templates")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_template_delete(request, pk):
-    tpl = get_object_or_404(DocumentTemplate, pk=pk)
+    tpl   = get_object_or_404(DocumentTemplate, pk=pk)
     title = tpl.title
     tpl.delete()
     messages.success(request, f"Шаблон «{title}» удалён.")
-    return redirect("/cpprp/?tab=templates")
+    return _cpprp_tab_redirect("templates")
 
 
-# ---------------------------------------------------------------------------
-# CSV Exports
-# ---------------------------------------------------------------------------
-
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_export_projects(request):
-    """Download all projects as CSV."""
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="projects-export.csv"'
-    response.write("﻿")  # BOM for Excel UTF-8 compatibility
+    response.write("﻿")
 
     writer = csv.writer(response)
     writer.writerow([
@@ -324,13 +229,12 @@ def cpprp_export_projects(request):
     return response
 
 
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_export_applications(request):
-    """Download all applications as CSV."""
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="applications-export.csv"'
-    response.write("﻿")  # BOM for Excel UTF-8 compatibility
+    response.write("﻿")
 
     writer = csv.writer(response)
     writer.writerow([
@@ -349,24 +253,18 @@ def cpprp_export_applications(request):
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_external_allowlist_bulk_add(request):
     form = ExternalAllowlistBulkForm(request.POST)
     if not form.is_valid():
-        for field, errs in form.errors.items():
-            messages.error(request, f"{field}: {errs[0]}")
-        return redirect("/cpprp/?tab=external-access")
+        flash_form_errors(request, form)
+        return _cpprp_tab_redirect("external-access")
 
     cleaned = form.cleaned_data
-    emails = _extract_external_email_list(cleaned["emails"])
-    if not emails:
-        messages.error(request, "Не удалось извлечь ни одного корректного email.")
-        return redirect("/cpprp/?tab=external-access")
-
     created_count = 0
     updated_count = 0
-    for email in emails:
+    for email in cleaned["emails"]:
         entry, created = ExternalAccessAllowlist.objects.get_or_create(
             email=email,
             defaults={
@@ -388,13 +286,13 @@ def cpprp_external_allowlist_bulk_add(request):
 
     messages.success(
         request,
-        f"Список внешних почт обновлён: создано {created_count}, обновлено {updated_count}.",
+        f"External allowlist updated: created {created_count}, updated {updated_count}.",
     )
-    return redirect("/cpprp/?tab=external-access")
+    return _cpprp_tab_redirect("external-access")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_external_request_approve(request, pk):
     access_request = get_object_or_404(ExternalAccessRequest, pk=pk)
@@ -421,15 +319,12 @@ def cpprp_external_request_approve(request, pk):
     access_request.save(
         update_fields=["status", "reviewed_by", "reviewed_at", "decision_note", "updated_at"]
     )
-    messages.success(
-        request,
-        f"Почта {access_request.email} одобрена и добавлена в allowlist.",
-    )
-    return redirect("/cpprp/?tab=external-access")
+    messages.success(request, f"{access_request.email} approved and added to allowlist.")
+    return _cpprp_tab_redirect("external-access")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_external_request_reject(request, pk):
     access_request = get_object_or_404(ExternalAccessRequest, pk=pk)
@@ -440,18 +335,18 @@ def cpprp_external_request_reject(request, pk):
     access_request.save(
         update_fields=["status", "reviewed_by", "reviewed_at", "decision_note", "updated_at"]
     )
-    messages.success(request, f"Заявка {access_request.email} отклонена.")
-    return redirect("/cpprp/?tab=external-access")
+    messages.success(request, f"{access_request.email} rejected.")
+    return _cpprp_tab_redirect("external-access")
 
 
 @require_POST
-@login_required(login_url="/auth/")
+@login_required(login_url=_LOGIN_URL)
 @moderator_required
 def cpprp_external_allowlist_toggle(request, pk):
     entry = get_object_or_404(ExternalAccessAllowlist, pk=pk)
     entry.is_active = not entry.is_active
     entry.approved_by = request.user
     entry.save(update_fields=["is_active", "approved_by", "updated_at"])
-    state = "активирована" if entry.is_active else "деактивирована"
-    messages.success(request, f"Внешняя почта {entry.email} {state}.")
-    return redirect("/cpprp/?tab=external-access")
+    state = "activated" if entry.is_active else "deactivated"
+    messages.success(request, f"{entry.email} {state}.")
+    return _cpprp_tab_redirect("external-access")

@@ -55,6 +55,9 @@ def submit_project_for_moderation(project: Project, actor) -> Project:
     return project
 
 
+MODERATION_COMMENT_MIN_LEN = 100
+
+
 def moderate_project(project: Project, actor, decision: str, comment: str = "") -> Project:
     if not _is_cpprp_or_staff(actor):
         raise PermissionDenied("Only CPPRP or staff can moderate projects.")
@@ -67,9 +70,12 @@ def moderate_project(project: Project, actor, decision: str, comment: str = "") 
     if normalized_decision not in {"approve", "reject"}:
         raise ValidationError({"decision": ["Unsupported decision. Use 'approve' or 'reject'."]})
 
-    if normalized_decision == "reject" and len(normalized_comment) < 100:
+    if normalized_decision == "reject" and len(normalized_comment) < MODERATION_COMMENT_MIN_LEN:
         raise ValidationError(
-            {"comment": ["Comment is required and must be at least 100 characters for rejection."]}
+            {"comment": [
+                f"Comment is required and must be at least "
+                f"{MODERATION_COMMENT_MIN_LEN} characters for rejection."
+            ]}
         )
 
     project.status = (

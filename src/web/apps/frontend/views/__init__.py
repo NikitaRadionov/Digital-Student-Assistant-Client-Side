@@ -3,33 +3,30 @@
 
 from .applications import (
     application_list,
-    apply_to_project,
-    edit_application,
+    EditApplicationView,
     project_applications,
     review_application_view,
     submit_application,
-    withdraw_application,
+    WithdrawApplicationView,
 )
 from .auth import (
-    auth_view,
-    error_403,
-    error_404,
-    error_500,
+    AuthView,
+    VerifyEmailView,
     logout_view,
     resend_email_code_view,
-    verify_email_view,
 )
+from .errors import error_403, error_404, error_500
 from .cpprp import (
     cpprp_dashboard,
     cpprp_deadline_create,
     cpprp_deadline_delete,
     cpprp_deadline_toggle,
-    cpprp_export_applications,
-    cpprp_export_projects,
     cpprp_external_allowlist_bulk_add,
     cpprp_external_allowlist_toggle,
     cpprp_external_request_approve,
     cpprp_external_request_reject,
+    cpprp_export_applications,
+    cpprp_export_projects,
     cpprp_template_create,
     cpprp_template_delete,
     cpprp_template_toggle,
@@ -37,6 +34,8 @@ from .cpprp import (
 from .legal import personal_data_consent_view, privacy_policy_view
 from .moderation import moderate_project_decide, moderation_list
 from .profile import profile_view
+from .student import student_overview
+from .technologies import technology_list, technology_moderate
 from .projects import (
     initiative_project_create,
     project_create,
@@ -48,15 +47,14 @@ from .projects import (
     recommendations_view,
     toggle_bookmark,
 )
-from .student import student_overview
-from .technologies import technology_list, technology_moderate
 
 __all__ = [
     # auth
-    "auth_view",
-    "verify_email_view",
+    "AuthView",
+    "VerifyEmailView",
     "resend_email_code_view",
     "logout_view",
+    # errors
     "error_403",
     "error_404",
     "error_500",
@@ -71,27 +69,26 @@ __all__ = [
     "toggle_bookmark",
     "initiative_project_create",
     # applications
-    "apply_to_project",
     "submit_application",
     "application_list",
     "project_applications",
     "review_application_view",
-    "withdraw_application",
-    "edit_application",
+    "WithdrawApplicationView",
+    "EditApplicationView",
     # cpprp
     "cpprp_dashboard",
     "cpprp_deadline_create",
     "cpprp_deadline_toggle",
     "cpprp_deadline_delete",
-    "cpprp_external_allowlist_bulk_add",
-    "cpprp_external_allowlist_toggle",
     "cpprp_template_create",
     "cpprp_template_toggle",
     "cpprp_template_delete",
-    "cpprp_export_projects",
-    "cpprp_export_applications",
+    "cpprp_external_allowlist_bulk_add",
     "cpprp_external_request_approve",
     "cpprp_external_request_reject",
+    "cpprp_external_allowlist_toggle",
+    "cpprp_export_projects",
+    "cpprp_export_applications",
     # legal
     "privacy_policy_view",
     "personal_data_consent_view",

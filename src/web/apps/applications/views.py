@@ -1,17 +1,14 @@
 from apps.account.permissions import IsCustomerOrStaff, IsStudentOrStaff
-from apps.outbox.services import emit_event
-from apps.projects.models import ProjectStatus
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework import serializers as drf_serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Application, ApplicationStatus
+from .models import Application
 from .serializers import ApplicationSerializer
-from .transitions import review_application
+from .services import create_application, delete_application, review_application_service
 
 
 class ApplicationListCreateAPIView(generics.ListCreateAPIView):
@@ -27,34 +24,22 @@ class ApplicationListCreateAPIView(generics.ListCreateAPIView):
             return queryset
         return queryset.filter(applicant=user)
 
-    def perform_create(self, serializer):
-        project = serializer.validated_data["project"]
-        if project.status not in ProjectStatus.catalog_values():
-            raise ValidationError(
-                {"project": ["Applications are allowed only for projects visible in catalog."]}
-            )
-        if project.application_window_state != "open":
-            raise ValidationError(
-                {
-                    "project": [
-                        (
-                            "Applications are allowed only while the project "
-                            "application window is open."
-                        )
-                    ]
-                }
-            )
-        application = serializer.save(
-            applicant=self.request.user,
-            status=ApplicationStatus.SUBMITTED,
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        project    = serializer.validated_data["project"]
+        motivation = serializer.validated_data.get("motivation", "")
+
+        application, _ = create_application(
+            project=project,
+            applicant=request.user,
+            motivation=motivation,
         )
-        emit_event(
-            event_type="application.changed",
-            aggregate_type="application",
-            aggregate_id=application.pk,
-            payload=ApplicationSerializer(application, context={"request": self.request}).data,
-            idempotency_key=f"application.changed:{application.pk}:{application.updated_at.isoformat()}:create",
-        )
+
+        out     = ApplicationSerializer(application, context={"request": request})
+        headers = self.get_success_headers(out.data)
+        return Response(out.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -70,30 +55,12 @@ class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
         return queryset.filter(applicant=user)
 
     def perform_destroy(self, instance):
-        aggregate_id = instance.pk
-        payload = {
-            "id": aggregate_id,
-            "project": instance.project_id,
-            "applicant": instance.applicant_id,
-            "status": "deleted",
-            "tombstone": True,
-            "created_at": instance.created_at.isoformat() if instance.created_at else None,
-            "updated_at": instance.updated_at.isoformat() if instance.updated_at else None,
-            "deleted_at": timezone.now().isoformat(),
-        }
-        super().perform_destroy(instance)
-        emit_event(
-            event_type="application.deleted",
-            aggregate_type="application",
-            aggregate_id=aggregate_id,
-            payload=payload,
-            idempotency_key=f"application.deleted:{aggregate_id}:{payload['deleted_at']}",
-        )
+        delete_application(instance)
 
 
 class ApplicationReviewInputSerializer(drf_serializers.Serializer):
     decision = drf_serializers.ChoiceField(choices=["accept", "reject"])
-    comment = drf_serializers.CharField(required=False, allow_blank=True, default="")
+    comment  = drf_serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ApplicationReviewAPIView(APIView):
@@ -104,25 +71,19 @@ class ApplicationReviewAPIView(APIView):
         responses=ApplicationSerializer,
     )
     def post(self, request, pk: int):
-        payload = ApplicationReviewInputSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
+        input_serializer = ApplicationReviewInputSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
 
         application = generics.get_object_or_404(
             Application.objects.select_related("project", "project__owner", "applicant"),
             pk=pk,
         )
-        review_application(
+        review_application_service(
             application=application,
             actor=request.user,
-            decision=payload.validated_data["decision"],
-            comment=payload.validated_data["comment"],
+            decision=input_serializer.validated_data["decision"],
+            comment=input_serializer.validated_data["comment"],
         )
-        emit_event(
-            event_type="application.changed",
-            aggregate_type="application",
-            aggregate_id=application.pk,
-            payload=ApplicationSerializer(application, context={"request": request}).data,
-            idempotency_key=f"application.changed:{application.pk}:{application.updated_at.isoformat()}:review",
-        )
+
         serializer = ApplicationSerializer(application, context={"request": request})
         return Response(serializer.data)

@@ -263,21 +263,13 @@
       var storageKey = 'dsa_cookie_notice_accepted_v1';
       var banner = document.getElementById('cookie-banner');
       var acceptButton = document.getElementById('cookie-banner-accept');
-      if (!banner || !acceptButton) {
-        return;
-      }
-      try {
-        if (!window.localStorage.getItem(storageKey)) {
-          banner.style.display = 'block';
-        }
-        acceptButton.addEventListener('click', function() {
-          window.localStorage.setItem(storageKey, '1');
-          banner.style.display = 'none';
-        });
-      } catch (error) {
+      if (banner && !localStorage.getItem(storageKey)) {
         banner.style.display = 'block';
+      }
+      if (acceptButton) {
         acceptButton.addEventListener('click', function() {
-          banner.style.display = 'none';
+          localStorage.setItem(storageKey, '1');
+          if (banner) banner.style.display = 'none';
         });
       }
     })();

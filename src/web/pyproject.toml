@@ -26,6 +26,7 @@ dependencies = [
 dev = [
     "django-debug-toolbar>=6.2.0",
     "pytest>=9.0.3",
+    "pytest-django>=4.9.0",
     "ty>=0.0.31",
 ]
 
@@ -33,6 +34,7 @@ dev = [
 python_files = ["test_*.py", "*_test.py", "tests_*.py"]
 testpaths = ["apps", "tests"]
 norecursedirs = [".venv", ".pytest_cache", ".ruff_cache", "dist", "build"]
+DJANGO_SETTINGS_MODULE = "config.settings.dev"
 
 [build-system]
 requires = ["setuptools>=82.0.1"]

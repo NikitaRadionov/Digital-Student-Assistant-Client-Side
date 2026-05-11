@@ -30,9 +30,10 @@ def test_registration_sends_code_and_keeps_user_logged_out():
         reverse("frontend:auth"),
         data={
             "tab": "register",
-            "email": email,
-            "password": "password123",
-            "name": "New Student",
+                "email": email,
+                "password": "ValidPass1!",
+                "password2": "ValidPass1!",
+                "name": "New Student",
             "role": UserRole.STUDENT,
             "personal_data_consent": "1",
         },
