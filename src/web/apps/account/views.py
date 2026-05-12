@@ -306,10 +306,42 @@ class CPPRPProjectsExportAPIView(APIView):
 
     @extend_schema(
         tags=["Account"],
-        summary="Экспорт проектов в CSV",
-        responses={(200, "text/csv"): OpenApiTypes.BINARY},
+        summary="Экспорт проектов (CSV или XLSX)",
+        description=(
+            "По умолчанию CSV. Для XLSX укажите format=xlsx; "
+            "variant=compatible|extended|both (по умолчанию both — два листа)."
+        ),
+        responses={
+            (200, "text/csv"): OpenApiTypes.BINARY,
+            (
+                200,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ): OpenApiTypes.BINARY,
+        },
     )
     def get(self, request):
+        fmt = (request.query_params.get("format") or "csv").lower()
+        if fmt == "xlsx":
+            from apps.projects.export_epp_xlsx import LegacyVariant, build_projects_xlsx_bytes
+
+            variant_raw = (request.query_params.get("variant") or "both").lower()
+            variant: LegacyVariant = (
+                variant_raw
+                if variant_raw in ("compatible", "extended", "both")
+                else "both"
+            )
+            payload = build_projects_xlsx_bytes(Project.objects.all(), variant=variant)
+            response = HttpResponse(
+                payload,
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ),
+            )
+            response["Content-Disposition"] = (
+                f'attachment; filename="projects-export-{variant}.xlsx"'
+            )
+            return response
+
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="projects-export.csv"'
         writer = csv.writer(response)

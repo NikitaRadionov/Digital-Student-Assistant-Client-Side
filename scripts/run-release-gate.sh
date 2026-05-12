@@ -26,6 +26,13 @@ export NEO4J_USER="${NEO4J_USER:-neo4j}"
 export NEO4J_PASSWORD="${NEO4J_PASSWORD:-testtest}"
 export ALLOW_NEO4J_RESET="${ALLOW_NEO4J_RESET:-1}"
 
+# Skip Neo4j Docker auto-start when graph integration is allowed to be skipped locally.
+# Otherwise `docker run` can fail (daemon down / no Docker) and exit the whole script due to set -e
+# before pytest runs — even though tests/integration would pytest.skip with ALLOW_LOCAL_GRAPH_SKIP=1.
+if [[ "${ALLOW_LOCAL_GRAPH_SKIP:-0}" == "1" ]]; then
+    export ALLOW_AUTO_START_NEO4J=0
+fi
+
 neo4j_container=""
 
 is_neo4j_reachable() {
