@@ -91,7 +91,7 @@ class TestSubmitApplication:
         assert response.status_code == 204
         assert "HX-Redirect" in response
 
-    def test_non_student_role_returns_400(self):
+    def test_non_student_role_returns_403(self):
         customer = _make_customer()
         project  = _make_project(owner=_make_customer())
         client   = Client()
@@ -100,8 +100,20 @@ class TestSubmitApplication:
             reverse("frontend:submit_application", kwargs={"pk": project.pk}),
             {"source": "card"},
         )
-        assert response.status_code == 400
+        assert response.status_code == 403
         assert Application.objects.filter(project=project, applicant=customer).count() == 0
+
+    def test_non_student_role_returns_error_toast(self):
+        customer = _make_customer()
+        project  = _make_project(owner=_make_customer())
+        client   = Client()
+        client.force_login(customer)
+        response = client.post(
+            reverse("frontend:submit_application", kwargs={"pk": project.pk}),
+            {"source": "card"},
+        )
+        trigger = json.loads(response["HX-Trigger"])
+        assert trigger["showToast"]["type"] == "error"
 
     def test_project_not_found_returns_404(self):
         student = _make_student()
@@ -410,10 +422,11 @@ class TestReviewApplicationView:
         app     = _make_submitted_application(project, _make_student())
         client  = Client()
         client.force_login(_make_customer())
-        client.post(
+        response = client.post(
             reverse("frontend:review_application", kwargs={"pk": app.pk}),
             {"decision": "accept", "comment": ""},
         )
+        assert response.status_code == 403
         app.refresh_from_db()
         assert app.status == ApplicationStatus.SUBMITTED
 

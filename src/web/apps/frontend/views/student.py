@@ -2,6 +2,7 @@ from apps.account.models import DeadlineAudience, DocumentTemplate, PlatformDead
 from apps.applications.models import Application, ApplicationStatus
 from apps.frontend.decorators import student_required
 from apps.frontend.utils import LOGIN_URL
+from apps.projects.initiative_models import InitiativeProposal, InitiativeProposalStatus
 from apps.projects.models import Project, ProjectStatus
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
@@ -16,22 +17,20 @@ _RECENT_FAVS = 6
 def student_overview(request):
     user = request.user
 
-    all_apps = (
-        Application.objects
-        .filter(applicant=user)
-        .select_related("project")
-        .order_by("-created_at")
-    )
-    counters = all_apps.aggregate(
+    base_qs = Application.objects.filter(applicant=user)
+    counters = base_qs.aggregate(
         total=Count("pk"),
         submitted=Count("pk", filter=Q(status=ApplicationStatus.SUBMITTED)),
         accepted=Count("pk",  filter=Q(status=ApplicationStatus.ACCEPTED)),
         rejected=Count("pk",  filter=Q(status=ApplicationStatus.REJECTED)),
     )
-    recent_apps = list(all_apps[:_RECENT_APPS])
+    recent_apps = list(
+        base_qs.select_related("project").order_by("-created_at")[:_RECENT_APPS]
+    )
 
-    fav_ids = list(user.profile.favorite_project_ids or [])
-    counters["favorites"] = len(fav_ids)
+    _profile        = getattr(user, "profile", None)
+    fav_ids         = list(_profile.favorite_project_ids or [] if _profile else [])
+    favorites_count = len(fav_ids)
 
     fav_projects = (
         list(
@@ -56,12 +55,20 @@ def student_overview(request):
         ).order_by("title")
     )
 
+    initiatives = list(
+        InitiativeProposal.objects
+        .filter(owner=user)
+        .order_by("-updated_at")[:3]
+    )
+
     return render(request, "frontend/student_overview.html", {
-        "counters":          counters,
-        "recent_apps":       recent_apps,
-        "fav_projects":      fav_projects,
-        "deadlines":         deadlines,
-        "templates":         templates,
-        "ApplicationStatus": ApplicationStatus,
-        "ProjectStatus":     ProjectStatus,
+        "counters":                 {**counters, "favorites": favorites_count},
+        "recent_apps":              recent_apps,
+        "fav_projects":             fav_projects,
+        "deadlines":                deadlines,
+        "templates":                templates,
+        "initiatives":              initiatives,
+        "InitiativeProposalStatus": InitiativeProposalStatus,
+        "ApplicationStatus":        ApplicationStatus,
+        "ProjectStatus":            ProjectStatus,
     })

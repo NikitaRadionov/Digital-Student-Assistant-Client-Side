@@ -25,6 +25,9 @@ def _validate_tags(tags: list[str]) -> list[str]:
     return tags
 
 
+_IS_PAID_CHOICES = [("", "Не указано"), ("yes", "Да"), ("no", "Нет")]
+
+
 class ProjectFrontendForm(forms.Form):
     title = forms.CharField(
         max_length=255,
@@ -50,12 +53,74 @@ class ProjectFrontendForm(forms.Form):
             "max_value": "Максимум 100 участников.",
         },
     )
+    work_format = forms.CharField(
+        required=False,
+        max_length=255,
+        error_messages={"max_length": "Не более 255 символов."},
+    )
+    hours_per_week = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_value=168,
+        decimal_places=2,
+        max_digits=8,
+        error_messages={
+            "invalid": "Введите число.",
+            "min_value": "Не может быть отрицательным.",
+            "max_value": "Максимум 168 часов.",
+        },
+    )
+    is_paid = forms.ChoiceField(
+        required=False,
+        choices=_IS_PAID_CHOICES,
+    )
+    application_deadline = forms.DateField(
+        required=False,
+        input_formats=["%Y-%m-%d"],
+        error_messages={"invalid": "Введите дату в формате ДД.ММ.ГГГГ."},
+    )
+    selection_criteria = forms.CharField(
+        required=False,
+        widget=forms.Textarea,
+        max_length=_DESCRIPTION_MAX,
+        error_messages={"max_length": f"Не более {_DESCRIPTION_MAX} символов."},
+    )
 
     def clean_tech_tags_raw(self):
         raw = self.cleaned_data.get("tech_tags_raw", "")
         if not raw.strip():
             return []
         return _validate_tags(normalize_technology_tags(raw.split(",")))
+
+    def clean_is_paid(self):
+        val = self.cleaned_data.get("is_paid", "")
+        if val == "yes":
+            return True
+        if val == "no":
+            return False
+        return None
+
+
+class ModerationProjectFieldsForm(forms.Form):
+    study_course = forms.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=6,
+        error_messages={"min_value": "Курс от 1 до 6.", "max_value": "Курс от 1 до 6.", "invalid": "Введите число."},
+    )
+    education_program = forms.CharField(required=False, max_length=255)
+    credits = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=8,
+        decimal_places=2,
+        error_messages={"invalid": "Введите число.", "min_value": "Не может быть отрицательным."},
+    )
+    activity_type = forms.CharField(required=False, max_length=255)
+    control_form = forms.CharField(required=False, max_length=255)
+    results_presentation_format = forms.CharField(required=False, widget=forms.Textarea, max_length=2000)
+    grading_formula = forms.CharField(required=False, widget=forms.Textarea, max_length=2000)
+    student_participation_format = forms.CharField(required=False, max_length=255)
 
 
 class InitiativeProjectForm(forms.Form):
@@ -112,6 +177,44 @@ class InitiativeProjectForm(forms.Form):
         if not raw.strip():
             return []
         return _validate_tags(normalize_technology_tags(raw.split(",")))
+
+
+_INITIATIVE_MODERATION_COMMENT_MIN_LEN = 50
+
+
+class InitiativeProposalModerationForm(forms.Form):
+    DECISION_CHOICES = [
+        ("approve", "Одобрить"),
+        ("reject",  "Отклонить"),
+    ]
+
+    decision = forms.ChoiceField(
+        choices=DECISION_CHOICES,
+        error_messages={
+            "required":       "Укажите решение.",
+            "invalid_choice": "Недопустимое решение: %(value)s.",
+        },
+    )
+    comment = forms.CharField(
+        required=False,
+        widget=forms.Textarea,
+    )
+
+    def clean(self) -> dict:
+        cleaned_data = super().clean()
+        decision = cleaned_data.get("decision")
+        comment  = cleaned_data.get("comment", "").strip()
+        if decision == "reject":
+            if not comment:
+                self.add_error("comment", "При отклонении укажите причину.")
+            elif len(comment) < _INITIATIVE_MODERATION_COMMENT_MIN_LEN:
+                self.add_error(
+                    "comment",
+                    f"Причина отклонения слишком короткая — "
+                    f"минимум {_INITIATIVE_MODERATION_COMMENT_MIN_LEN} символов.",
+                )
+        cleaned_data["comment"] = comment
+        return cleaned_data
 
 
 class ModerationDecisionForm(forms.Form):

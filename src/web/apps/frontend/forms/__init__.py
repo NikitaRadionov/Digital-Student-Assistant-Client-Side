@@ -2,7 +2,13 @@ from .applications import ApplicationFilterForm, MotivationForm, ReviewApplicati
 from .auth import LoginForm, RegisterForm
 from .cpprp import DeadlineForm, ExternalAllowlistBulkForm, TemplateForm
 from .profile import ProfileEditForm
-from .projects import InitiativeProjectForm, ModerationDecisionForm, ProjectFrontendForm
+from .projects import (
+    InitiativeProjectForm,
+    InitiativeProposalModerationForm,
+    ModerationDecisionForm,
+    ModerationProjectFieldsForm,
+    ProjectFrontendForm,
+)
 
 __all__ = [
     "LoginForm",
@@ -12,7 +18,9 @@ __all__ = [
     "ReviewApplicationForm",
     "ProjectFrontendForm",
     "InitiativeProjectForm",
+    "InitiativeProposalModerationForm",
     "ModerationDecisionForm",
+    "ModerationProjectFieldsForm",
     "DeadlineForm",
     "TemplateForm",
     "ExternalAllowlistBulkForm",

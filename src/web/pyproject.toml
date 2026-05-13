@@ -25,6 +25,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "django-debug-toolbar>=6.2.0",
+    "prometheus-client>=0.25.0",
     "pytest>=9.0.3",
     "pytest-django>=4.9.0",
     "ty>=0.0.31",

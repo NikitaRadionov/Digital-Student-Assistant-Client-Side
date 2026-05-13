@@ -29,10 +29,8 @@ from django.urls import reverse
 from django.views import View
 from django.views.decorators.http import require_POST
 
+User = get_user_model()
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _safe_redirect_target(raw_next_url: str) -> str:
     candidate = (raw_next_url or "").strip()
@@ -45,7 +43,6 @@ def _safe_redirect_target(raw_next_url: str) -> str:
 
 
 def _build_unique_username(email: str) -> str:
-    User = get_user_model()
     base = email.split("@")[0]
     username, n = base, 1
     while User.objects.filter(username=username).exists():
@@ -60,10 +57,6 @@ def _verification_redirect_url(email: str, next_url: str = "") -> str:
         query["next"] = next_url
     return f"{reverse('frontend:verify_email')}?{urlencode(query)}"
 
-
-# ---------------------------------------------------------------------------
-# ExternalAccess helpers (business rules, not form validation)
-# ---------------------------------------------------------------------------
 
 def _corporate_email_domains() -> set[str]:
     configured = getattr(settings, "ALLOWED_CORPORATE_EMAIL_DOMAINS", ["edu.hse.ru"])
@@ -90,45 +83,29 @@ def _create_or_refresh_external_access_request(
     full_name: str,
     requested_role: str,
 ) -> None:
-    normalized = normalize_email(email)
-    request_obj = ExternalAccessRequest.objects.filter(email=normalized).first()
-    if request_obj is None:
-        ExternalAccessRequest.objects.create(
-            email=normalized,
-            full_name=full_name,
-            requested_role=requested_role,
-        )
-        return
+    ExternalAccessRequest.objects.update_or_create(
+        email=normalize_email(email),
+        defaults={
+            "full_name":      full_name,
+            "requested_role": requested_role,
+            "status":         ExternalAccessRequestStatus.PENDING,
+            "decision_note":  "",
+            "reviewed_by":    None,
+            "reviewed_at":    None,
+        },
+    )
 
-    request_obj.full_name = full_name
-    request_obj.requested_role = requested_role
-    request_obj.status = ExternalAccessRequestStatus.PENDING
-    request_obj.decision_note = ""
-    request_obj.reviewed_by = None
-    request_obj.reviewed_at = None
-    request_obj.save(update_fields=[
-        "full_name",
-        "requested_role",
-        "status",
-        "decision_note",
-        "reviewed_by",
-        "reviewed_at",
-        "updated_at",
-    ])
-
-
-# ---------------------------------------------------------------------------
-# Views
-# ---------------------------------------------------------------------------
 
 class AuthView(View):
 
     template_name = "frontend/auth.html"
 
-    def get(self, request):
+    def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return redirect("frontend:project_list")
+        return super().dispatch(request, *args, **kwargs)
 
+    def get(self, request):
         next_url = request.GET.get("next", "").strip()
         return render(request, self.template_name, self._build_context(
             active_tab="login",
@@ -138,9 +115,6 @@ class AuthView(View):
         ))
 
     def post(self, request):
-        if request.user.is_authenticated:
-            return redirect("frontend:project_list")
-
         active_tab = request.POST.get("tab", "login")
         next_url   = request.POST.get("next", request.GET.get("next", "")).strip()
 
@@ -184,13 +158,11 @@ class AuthView(View):
         email    = form.cleaned_data["email"]
         password = form.cleaned_data["password"]
 
-        User     = get_user_model()
-        user_obj = None
-        try:
-            user_obj = User.objects.get(email__iexact=email)
-            user     = authenticate(request, username=user_obj.username, password=password)
-        except User.DoesNotExist:
-            user = None
+        user_obj = User.objects.filter(email__iexact=email).first()
+        user     = (
+            authenticate(request, username=user_obj.username, password=password)
+            if user_obj else None
+        )
 
         if user is not None:
             auth_login(request, user)
@@ -218,7 +190,6 @@ class AuthView(View):
         name     = form.cleaned_data["name"]
         role     = form.cleaned_data["role"]
 
-        # External customer not in allowlist → create access request, don't register yet
         if (
             role == UserRole.CUSTOMER
             and not _is_corporate_email(email)
@@ -236,7 +207,6 @@ class AuthView(View):
             )
             return redirect("frontend:auth")
 
-        User = get_user_model()
         with transaction.atomic():
             new_user = User.objects.create_user(
                 username=_build_unique_username(email),
@@ -281,19 +251,18 @@ class VerifyEmailView(View):
 
     template_name = "frontend/verify_email.html"
 
-    def get(self, request):
+    def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             return redirect("frontend:project_list")
+        return super().dispatch(request, *args, **kwargs)
 
+    def get(self, request):
         return render(request, self.template_name, self._build_context(
             email=request.GET.get("email", "").strip().lower(),
             next_url=request.GET.get("next", "").strip(),
         ))
 
     def post(self, request):
-        if request.user.is_authenticated:
-            return redirect("frontend:project_list")
-
         email    = request.POST.get("email", "").strip().lower()
         code     = request.POST.get("code", "").strip()
         next_url = request.POST.get("next", "").strip()
@@ -310,7 +279,8 @@ class VerifyEmailView(View):
                 errors["email"] = "Введите email."
             if not code:
                 errors["code"] = "Введите код подтверждения."
-        errors["general"] = result.message
+        else:
+            errors["general"] = result.message
 
         return render(request, self.template_name, self._build_context(
             email=email,

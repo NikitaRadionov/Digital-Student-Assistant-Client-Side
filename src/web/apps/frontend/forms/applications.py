@@ -12,6 +12,7 @@ from apps.applications.models import ApplicationStatus
 from apps.applications.transitions import REVIEW_COMMENT_MIN_LEN
 
 _MOTIVATION_MIN = 30
+_MOTIVATION_MAX = 3000
 
 
 class MotivationForm(forms.Form):
@@ -19,6 +20,7 @@ class MotivationForm(forms.Form):
 
     motivation = forms.CharField(
         required=False,
+        max_length=_MOTIVATION_MAX,
         widget=forms.Textarea,
         error_messages={
             "max_length": "Мотивация слишком длинная.",

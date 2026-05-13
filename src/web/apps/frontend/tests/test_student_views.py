@@ -157,7 +157,6 @@ class TestStudentOverview:
         assert any(t.pk == tpl.pk for t in templates)
 
     def test_cpprp_audience_deadline_not_shown_to_student(self):
-        """Deadlines targeted at CPPRP must not appear in the student view."""
         student = _make_student()
         PlatformDeadline.objects.create(
             slug=f"dl-{_uid()}",
@@ -172,3 +171,42 @@ class TestStudentOverview:
         deadlines = response.context["deadlines"]
         for d in deadlines:
             assert d.audience in (DeadlineAudience.STUDENT, DeadlineAudience.GLOBAL)
+
+    def test_global_deadline_shown_to_student(self):
+        student = _make_student()
+        dl = PlatformDeadline.objects.create(
+            slug=f"dl-{_uid()}",
+            title="Global Deadline",
+            audience=DeadlineAudience.GLOBAL,
+            is_active=True,
+        )
+        client = Client()
+        client.force_login(student)
+        response = client.get(reverse("frontend:student_overview"))
+        assert any(d.pk == dl.pk for d in response.context["deadlines"])
+
+    def test_favorites_count_in_counters(self):
+        student = _make_student()
+        p1 = _make_project()
+        p2 = _make_project()
+        student.profile.set_favorite_project_ids([p1.pk, p2.pk])
+        student.profile.save(update_fields=["favorite_project_ids"])
+        client = Client()
+        client.force_login(student)
+        response = client.get(reverse("frontend:student_overview"))
+        assert response.context["counters"]["favorites"] == 2
+
+    def test_recent_apps_capped_at_limit(self):
+        from apps.frontend.views.student import _RECENT_APPS
+        student = _make_student()
+        for _ in range(_RECENT_APPS + 2):
+            Application.objects.create(
+                project=_make_project(),
+                applicant=student,
+                status=ApplicationStatus.SUBMITTED,
+            )
+        client = Client()
+        client.force_login(student)
+        response = client.get(reverse("frontend:student_overview"))
+        assert len(response.context["recent_apps"]) == _RECENT_APPS
+        assert response.context["counters"]["total"] == _RECENT_APPS + 2

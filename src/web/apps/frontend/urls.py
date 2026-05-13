@@ -36,6 +36,12 @@ urlpatterns = [
         name="initiative_project_create",
     ),
 
+    # Initiative proposals (student lifecycle)
+    path("initiatives/", views.initiative_proposal_list, name="initiative_proposal_list"),
+    path("initiatives/<int:pk>/edit/", views.initiative_proposal_edit, name="initiative_proposal_edit"),
+    path("initiatives/<int:pk>/submit/", views.initiative_proposal_submit, name="initiative_proposal_submit"),
+    path("initiatives/<int:pk>/delete/", views.initiative_proposal_delete, name="initiative_proposal_delete"),
+
     # Applications
     path("applications/", views.application_list, name="application_list"),
     path(
@@ -80,8 +86,19 @@ urlpatterns = [
     path("cpprp/export/projects/", views.cpprp_export_projects, name="cpprp_export_projects"),
     path("cpprp/export/applications/", views.cpprp_export_applications, name="cpprp_export_applications"),
 
+    # CPPRP initiative moderation
+    path("cpprp/initiatives/", views.initiative_moderation_list, name="initiative_moderation_list"),
+    path("cpprp/initiatives/<int:pk>/", views.initiative_moderation_detail, name="initiative_moderation_detail"),
+    path("cpprp/initiatives/<int:pk>/decide/", views.initiative_moderate_decide, name="initiative_moderate_decide"),
+
+    # Faculty catalog
+    path("faculty/", views.faculty_list, name="faculty_list"),
+    path("faculty/<str:source_key>/", views.faculty_detail, name="faculty_detail"),
+
     # Moderation
     path("moderation/", views.moderation_list, name="moderation_list"),
+    path("moderation/<int:pk>/", views.moderation_detail, name="moderation_detail"),
+    path("moderation/<int:pk>/fields/", views.moderation_update_fields, name="moderation_update_fields"),
     path(
         "moderation/<int:pk>/decide/",
         views.moderate_project_decide,

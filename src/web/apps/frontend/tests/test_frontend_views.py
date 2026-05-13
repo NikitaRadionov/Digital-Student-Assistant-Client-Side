@@ -113,12 +113,30 @@ def test_toggle_bookmark_creates_and_removes():
 
 
 def test_project_detail_redirects_anonymous_to_auth():
-    """Direct link to a project detail must require login."""
     project = _make_project()
     client = Client()
     response = client.get(reverse("frontend:project_detail", kwargs={"pk": project.pk}))
     assert response.status_code == 302
     assert "/auth/" in response["Location"]
+
+
+def test_project_detail_accessible_for_authenticated_student():
+    student = _make_student()
+    project = _make_project(status=ProjectStatus.PUBLISHED)
+    client = Client()
+    client.force_login(student)
+    response = client.get(reverse("frontend:project_detail", kwargs={"pk": project.pk}))
+    assert response.status_code == 200
+    assert project.title in response.content.decode()
+
+
+def test_project_detail_non_public_forbidden_for_non_owner():
+    student = _make_student()
+    project = _make_project(status=ProjectStatus.DRAFT)
+    client = Client()
+    client.force_login(student)
+    response = client.get(reverse("frontend:project_detail", kwargs={"pk": project.pk}))
+    assert response.status_code == 403
 
 
 def test_toggle_bookmark_requires_login():
@@ -128,6 +146,14 @@ def test_toggle_bookmark_requires_login():
     response = client.post(url)
     # Should redirect to auth page
     assert response.status_code in (302, 403)
+
+
+def test_toggle_bookmark_nonexistent_project_returns_404():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+    response = client.post(reverse("frontend:toggle_bookmark", kwargs={"pk": 999999}))
+    assert response.status_code == 404
 
 
 def test_bookmarked_project_appears_in_bookmarks_tab():
@@ -228,12 +254,39 @@ def test_initiative_project_with_supervisor():
             "tech_tags_raw": "",
             "team_size": "1",
             "supervisor_name": "Иванов Иван Иванович",
+            "supervisor_personal_data_consent": "on",
         },
     )
 
     project = Project.objects.filter(owner=student, source_type=ProjectSourceType.INITIATIVE).last()
     assert project is not None
     assert project.supervisor_name == "Иванов Иван Иванович"
+
+
+def test_initiative_project_supervisor_without_consent_rejected():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+
+    response = client.post(
+        reverse("frontend:initiative_project_create"),
+        {
+            "title": "Supervised project",
+            "description": "Project with supervisor but no consent.",
+            "tech_tags_raw": "",
+            "team_size": "1",
+            "supervisor_name": "Петров Пётр Петрович",
+        },
+    )
+    assert response.status_code == 200
+    assert not Project.objects.filter(owner=student, source_type=ProjectSourceType.INITIATIVE).exists()
+
+
+def test_initiative_project_create_redirects_anonymous():
+    client = Client()
+    response = client.get(reverse("frontend:initiative_project_create"))
+    assert response.status_code == 302
+    assert "/auth/" in response["Location"]
 
 
 # ---------------------------------------------------------------------------
@@ -443,9 +496,30 @@ def test_project_submit_moderation_forbidden_for_non_owner():
     client = Client()
     client.force_login(other)
     response = client.post(reverse("frontend:project_submit_moderation", kwargs={"pk": project.pk}))
-    assert response.status_code in (302, 403, 404)
+    assert response.status_code == 403
     project.refresh_from_db()
     assert project.status == ProjectStatus.DRAFT
+
+
+def test_project_submit_moderation_invalid_state_returns_error():
+    customer = _make_customer()
+    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
+    client = Client()
+    client.force_login(customer)
+    response = client.post(reverse("frontend:project_submit_moderation", kwargs={"pk": project.pk}))
+    assert response.status_code == 302
+    project.refresh_from_db()
+    assert project.status == ProjectStatus.PUBLISHED
+
+
+def test_project_delete_non_deletable_status_redirects():
+    customer = _make_customer()
+    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
+    client = Client()
+    client.force_login(customer)
+    response = client.post(reverse("frontend:project_delete", kwargs={"pk": project.pk}))
+    assert response.status_code == 302
+    assert Project.objects.filter(pk=project.pk).exists()
 
 
 # ---------------------------------------------------------------------------
@@ -521,6 +595,17 @@ def test_customer_sees_own_projects():
     content = response.content.decode()
     assert own.title in content
     assert other.title not in content
+
+
+def test_customer_project_list_total_count_in_context():
+    customer = _make_customer()
+    _make_project(owner=customer, status=ProjectStatus.DRAFT)
+    _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
+    client = Client()
+    client.force_login(customer)
+    response = client.get(reverse("frontend:project_list"))
+    assert response.status_code == 200
+    assert response.context["total_count"] == 2
 
 
 # ---------------------------------------------------------------------------

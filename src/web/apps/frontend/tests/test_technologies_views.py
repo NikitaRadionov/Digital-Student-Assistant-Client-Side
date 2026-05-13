@@ -1,10 +1,3 @@
-"""
-Technology list and moderation view tests.
-
-Covers: unauthenticated redirect, role-based access, approved/pending visibility,
-approve/reject transitions, unknown-action error, and 404 for already-moderated tech.
-"""
-
 from uuid import uuid4
 
 import pytest
@@ -79,6 +72,19 @@ class TestTechnologyList:
         pending_pks = {t.pk for t in response.context["pending_technologies"]}
         assert tech.pk in pending_pks
 
+    def test_total_approved_count_in_context(self):
+        _make_technology(status=TechnologyStatus.APPROVED)
+        _make_technology(status=TechnologyStatus.APPROVED)
+        _make_technology(status=TechnologyStatus.PENDING)
+        client = Client()
+        client.force_login(_make_student())
+        response = client.get(reverse("frontend:technology_list"))
+        assert response.status_code == 200
+        assert response.context["total_approved"] >= 2
+        assert response.context["total_approved"] == len(
+            list(response.context["approved_technologies"])
+        )
+
 
 class TestTechnologyModerate:
 
@@ -108,7 +114,7 @@ class TestTechnologyModerate:
             reverse("frontend:technology_moderate", kwargs={"pk": tech.pk}),
             {"action": "approve"},
         )
-        assert response.status_code in (302, 403)
+        assert response.status_code == 403
         tech.refresh_from_db()
         assert tech.status == TechnologyStatus.PENDING
 
@@ -151,7 +157,6 @@ class TestTechnologyModerate:
         assert any(m.level_tag == "error" for m in stored)
 
     def test_already_approved_returns_404(self):
-        """get_object_or_404(..., status=PENDING) must 404 for already-approved tech."""
         tech = _make_technology(status=TechnologyStatus.APPROVED)
         client = Client()
         client.force_login(_make_cpprp())

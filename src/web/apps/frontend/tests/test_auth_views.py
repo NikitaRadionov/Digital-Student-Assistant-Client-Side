@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 import pytest
-from apps.users.models import UserProfile, UserRole
+from apps.users.models import ExternalAccessRequest, UserProfile, UserRole
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
@@ -154,6 +154,38 @@ def test_register_rejects_duplicate_email():
     response = Client().post(reverse("frontend:auth"), _register_payload(email=email))
     assert response.status_code == 200
     assert "A user with this email already exists" in response.content.decode()
+
+
+def test_register_mismatched_passwords():
+    response = Client().post(
+        reverse("frontend:auth"),
+        _register_payload(password="ValidPass1!", password2="Different1!"),
+    )
+    assert response.status_code == 200
+    assert "Passwords do not match" in response.content.decode()
+    assert not User.objects.filter(email=_register_payload()["email"]).exists()
+
+
+def test_register_without_consent():
+    uid = _uid()
+    response = Client().post(
+        reverse("frontend:auth"),
+        _register_payload(email=f"noconsent-{uid}@edu.hse.ru", personal_data_consent=""),
+    )
+    assert response.status_code == 200
+    assert not User.objects.filter(email=f"noconsent-{uid}@edu.hse.ru").exists()
+
+
+def test_register_external_customer_creates_access_request():
+    uid = _uid()
+    external_email = f"external-{uid}@gmail.com"
+    response = Client().post(
+        reverse("frontend:auth"),
+        _register_payload(email=external_email, role=UserRole.CUSTOMER),
+    )
+    assert response.status_code == 302
+    assert not User.objects.filter(email=external_email).exists()
+    assert ExternalAccessRequest.objects.filter(email=external_email).exists()
 
 
 def test_logout_redirects_to_auth():

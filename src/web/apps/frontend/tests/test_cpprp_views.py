@@ -12,7 +12,13 @@ import pytest
 from apps.account.models import DeadlineAudience, DocumentTemplate, PlatformDeadline
 from apps.applications.models import Application, ApplicationStatus
 from apps.projects.models import Project, ProjectStatus
-from apps.users.models import UserProfile, UserRole
+from apps.users.models import (
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    ExternalAccessRequestStatus,
+    UserProfile,
+    UserRole,
+)
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
@@ -309,3 +315,98 @@ class TestCpprpExport:
         client.force_login(_make_student())
         response = client.get(reverse("frontend:cpprp_export_projects"))
         assert response.status_code in (302, 403)
+
+
+class TestCpprpExternalAccess:
+
+    def test_bulk_add_creates_new_allowlist_entry(self):
+        cpprp = _make_cpprp()
+        client = Client()
+        client.force_login(cpprp)
+        response = client.post(
+            reverse("frontend:cpprp_external_allowlist_bulk_add"),
+            {"emails": "newuser@example.com", "allowed_role": UserRole.CUSTOMER},
+        )
+        assert response.status_code == 302
+        assert "?tab=external-access" in response["Location"]
+        assert ExternalAccessAllowlist.objects.filter(email="newuser@example.com").exists()
+
+    def test_bulk_add_reactivates_and_updates_existing_entry(self):
+        cpprp = _make_cpprp()
+        ExternalAccessAllowlist.objects.create(
+            email="existing@example.com",
+            allowed_role=UserRole.CUSTOMER,
+            is_active=False,
+        )
+        client = Client()
+        client.force_login(cpprp)
+        client.post(
+            reverse("frontend:cpprp_external_allowlist_bulk_add"),
+            {"emails": "existing@example.com", "allowed_role": UserRole.CUSTOMER},
+        )
+        entry = ExternalAccessAllowlist.objects.get(email="existing@example.com")
+        assert entry.is_active is True
+        assert entry.approved_by == cpprp
+
+    def test_approve_request_updates_status_and_creates_allowlist_entry(self):
+        cpprp = _make_cpprp()
+        req = ExternalAccessRequest.objects.create(
+            email="pending@example.com",
+            requested_role=UserRole.CUSTOMER,
+        )
+        client = Client()
+        client.force_login(cpprp)
+        response = client.post(
+            reverse("frontend:cpprp_external_request_approve", kwargs={"pk": req.pk})
+        )
+        assert response.status_code == 302
+        req.refresh_from_db()
+        assert req.status == ExternalAccessRequestStatus.APPROVED
+        assert req.reviewed_by_id == cpprp.pk
+        assert ExternalAccessAllowlist.objects.filter(email="pending@example.com").exists()
+
+    def test_reject_request_updates_status(self):
+        cpprp = _make_cpprp()
+        req = ExternalAccessRequest.objects.create(
+            email="toreject@example.com",
+            requested_role=UserRole.CUSTOMER,
+        )
+        client = Client()
+        client.force_login(cpprp)
+        response = client.post(
+            reverse("frontend:cpprp_external_request_reject", kwargs={"pk": req.pk})
+        )
+        assert response.status_code == 302
+        req.refresh_from_db()
+        assert req.status == ExternalAccessRequestStatus.REJECTED
+        assert req.reviewed_by_id == cpprp.pk
+
+    def test_toggle_allowlist_deactivates_active_entry(self):
+        cpprp = _make_cpprp()
+        entry = ExternalAccessAllowlist.objects.create(
+            email="toggle@example.com",
+            allowed_role=UserRole.CUSTOMER,
+            is_active=True,
+        )
+        client = Client()
+        client.force_login(cpprp)
+        response = client.post(
+            reverse("frontend:cpprp_external_allowlist_toggle", kwargs={"pk": entry.pk})
+        )
+        assert response.status_code == 302
+        entry.refresh_from_db()
+        assert entry.is_active is False
+
+    def test_external_access_forbidden_for_student(self):
+        req = ExternalAccessRequest.objects.create(
+            email="blocked@example.com",
+            requested_role=UserRole.CUSTOMER,
+        )
+        client = Client()
+        client.force_login(_make_student())
+        response = client.post(
+            reverse("frontend:cpprp_external_request_approve", kwargs={"pk": req.pk})
+        )
+        assert response.status_code in (302, 403)
+        req.refresh_from_db()
+        assert req.status == ExternalAccessRequestStatus.PENDING

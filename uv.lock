@@ -1344,6 +1344,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "django-debug-toolbar" },
+    { name = "prometheus-client" },
     { name = "pytest" },
     { name = "pytest-django" },
     { name = "ty" },
@@ -1371,6 +1372,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "django-debug-toolbar", specifier = ">=6.2.0" },
+    { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-django", specifier = ">=4.9.0" },
     { name = "ty", specifier = ">=0.0.31" },

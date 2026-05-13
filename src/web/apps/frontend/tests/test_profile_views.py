@@ -36,6 +36,12 @@ def _make_customer():
     return user
 
 
+def _make_cpprp():
+    user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
+    UserProfile.objects.create(user=user, role=UserRole.CPPRP)
+    return user
+
+
 def _make_project(**kwargs):
     defaults = {"title": f"Project {_uid()}", "status": ProjectStatus.PUBLISHED, "team_size": 3}
     defaults.update(kwargs)
@@ -119,7 +125,6 @@ def test_profile_update_post_saves_name():
 
 
 def test_profile_update_double_space_name():
-    """split(None, 1) must handle extra whitespace — last_name must not carry a leading space."""
     student = _make_student()
     client = Client()
     client.force_login(student)
@@ -127,10 +132,48 @@ def test_profile_update_double_space_name():
     client.post(
         reverse("frontend:profile"),
         {
-            "full_name": "Иван  Петров",  # double space between names
+            "full_name": "Иван  Петров",
             "bio": "Студент МИЭМ",
             "interests_raw": "",
         },
     )
     student.refresh_from_db()
     assert student.last_name == "Петров"
+
+
+def test_profile_update_single_word_name_clears_last_name():
+    student = _make_student()
+    student.last_name = "Старая"
+    student.save(update_fields=["last_name"])
+    client = Client()
+    client.force_login(student)
+
+    client.post(
+        reverse("frontend:profile"),
+        {"full_name": "Иван", "bio": "", "interests_raw": ""},
+    )
+    student.refresh_from_db()
+    assert student.first_name == "Иван"
+    assert student.last_name == ""
+
+
+def test_profile_update_short_bio_rejected():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+
+    response = client.post(
+        reverse("frontend:profile"),
+        {"full_name": "Иван Петров", "bio": "Коротко", "interests_raw": ""},
+    )
+    assert response.status_code == 200
+    assert response.context["form"].errors
+
+
+def test_profile_get_renders_for_cpprp():
+    cpprp = _make_cpprp()
+    client = Client()
+    client.force_login(cpprp)
+    response = client.get(reverse("frontend:profile"))
+    assert response.status_code == 200
+    assert response.context["moderation_queue_count"] == 0

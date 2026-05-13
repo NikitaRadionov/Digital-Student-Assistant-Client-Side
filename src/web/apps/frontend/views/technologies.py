@@ -1,6 +1,6 @@
 from apps.frontend.decorators import moderator_required
 from apps.frontend.utils import LOGIN_URL
-from apps.projects.models import Project, ProjectStatus, Technology, TechnologyStatus
+from apps.projects.models import ProjectStatus, Technology, TechnologyStatus
 from apps.users.utils import user_is_moderator
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 def technology_list(request):
     live_filter = Q(projects__status__in=ProjectStatus.catalog_values())
 
-    approved_qs = (
+    approved_list = list(
         Technology.objects.approved()
         .annotate(project_count=Count("projects", filter=live_filter, distinct=True))
         .order_by("-project_count", "normalized_name")
@@ -31,16 +31,16 @@ def technology_list(request):
     )
 
     return render(request, "frontend/technology_list.html", {
-        "approved_technologies": approved_qs,
+        "approved_technologies": approved_list,
         "pending_technologies":  pending_list,
         "is_moderator":          is_mod,
-        "total_approved":        approved_qs.count(),
+        "total_approved":        len(approved_list),
     })
 
 
-@require_POST
 @login_required(login_url=LOGIN_URL)
 @moderator_required
+@require_POST
 def technology_moderate(request, pk):
     tech   = get_object_or_404(Technology, pk=pk, status=TechnologyStatus.PENDING)
     action = request.POST.get("action", "").strip()
