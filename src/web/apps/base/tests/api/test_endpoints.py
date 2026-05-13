@@ -191,6 +191,30 @@ def test_api_schema_exposes_initiative_proposal_paths():
     assert "/api/v1/initiative-proposals/{id}/actions/moderate/" in payload["paths"]
 
 
+def test_api_schema_exposes_auth_registration_and_email_token_paths():
+    c = Client()
+    r = c.get(reverse("api-schema"), HTTP_ACCEPT="application/vnd.oai.openapi+json")
+    assert r.status_code == 200
+
+    payload = r.json()
+    paths = payload["paths"]
+    assert "/api/v1/auth/register/" in paths
+    assert "/api/v1/auth/verify-email/" in paths
+    assert "/api/v1/auth/verify-email/resend/" in paths
+    assert "/api/v1/auth/token/" in paths
+
+    token_request_schema_ref = (
+        paths["/api/v1/auth/token/"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    )
+    schema_name = token_request_schema_ref["$ref"].rsplit("/", 1)[-1]
+    token_request_schema = payload["components"]["schemas"][schema_name]
+    token_properties = token_request_schema["properties"]
+    assert "email" in token_properties
+    assert "password" in token_properties
+    assert "username" not in token_properties
+    assert set(token_request_schema["required"]) == {"email", "password"}
+
+
 def test_api_schema_hides_non_public_helper_routes():
     c = Client()
     r = c.get(reverse("api-schema"), HTTP_ACCEPT="application/vnd.oai.openapi+json")
