@@ -93,7 +93,7 @@ uv run python manage.py import_epp_xlsx --path /absolute/path/to/EPP.xlsx --sett
 - `faculty/persons*` для зеркала данных преподавателей и сопоставления проектов с научными руководителями;
 - `imports/epp` и outbox-методы (`outbox/events`, `outbox/events/ack`, `outbox/consumers/<consumer>/checkpoint`, `outbox/snapshot`) для безопасной синхронизации с `graph`, `ml` и `faculty`.
 
-Файлы развертывания расположены в `infra/docker-compose.prod.yml`, `infra/nginx/default.conf`, `scripts/backup-postgres.sh` и `scripts/restore-postgres.sh`. Отдельная инструкция по входу в административную панель и топологии CSRF находится в `docs/issues/admin-login-http-https.md`. Выполнимые сценарии `k6` для оценки размеров виртуальной машины находятся в `perf/k6/`.
+Файлы развертывания расположены в `infra/docker-compose.prod.yml`, шаблонах nginx в `infra/nginx/templates/` (переменные `NGINX_PUBLIC_HOST`, опционально `NGINX_CONF_TEMPLATE` в `.env.*`), `scripts/backup-postgres.sh` и `scripts/restore-postgres.sh`. Отдельная инструкция по входу в административную панель и топологии CSRF находится в `docs/issues/admin-login-http-https.md`. Выполнимые сценарии `k6` для оценки размеров виртуальной машины находятся в `perf/k6/`.
 
 ## Django settings profiles
 
