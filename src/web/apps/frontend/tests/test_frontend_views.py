@@ -1,26 +1,20 @@
 """
-Frontend view tests: bookmarks, initiative project, profile, tab redirects,
-project CRUD, filtering, application review, moderation workflow.
+Frontend view tests: bookmarks, initiative project, tab redirects,
+project CRUD, filtering.
+
+Auth tests → test_auth_views.py
+Profile tests → test_profile_views.py
 """
 
-from datetime import timedelta
 from uuid import uuid4
 
 import pytest
-from apps.applications.models import Application, ApplicationStatus
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
-from apps.users.models import (
-    ExternalAccessAllowlist,
-    ExternalAccessRequest,
-    ExternalAccessRequestStatus,
-    UserProfile,
-    UserRole,
-)
+from apps.users.models import UserProfile, UserRole
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
-from django.utils import timezone
 
 User = get_user_model()
 
@@ -52,12 +46,6 @@ def _make_student(interests=None):
 def _make_customer():
     user = User.objects.create_user(username=f"cust-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CUSTOMER)
-    return user
-
-
-def _make_cpprp():
-    user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
-    UserProfile.objects.create(user=user, role=UserRole.CPPRP)
     return user
 
 
@@ -125,7 +113,6 @@ def test_toggle_bookmark_creates_and_removes():
 
 
 def test_project_detail_redirects_anonymous_to_auth():
-    """Direct link to a project detail must require login."""
     project = _make_project()
     client = Client()
     response = client.get(reverse("frontend:project_detail", kwargs={"pk": project.pk}))
@@ -133,16 +120,23 @@ def test_project_detail_redirects_anonymous_to_auth():
     assert "/auth/" in response["Location"]
 
 
-def test_submit_application_returns_401_json_for_anonymous():
-    """fetch() submit from modal must get JSON 401, not HTML redirect."""
-    project = _make_project()
+def test_project_detail_accessible_for_authenticated_student():
+    student = _make_student()
+    project = _make_project(status=ProjectStatus.PUBLISHED)
     client = Client()
-    url = reverse("frontend:submit_application", kwargs={"pk": project.pk})
-    response = client.post(url, {"motivation": "test", "source": "card"})
-    assert response.status_code == 401
-    data = response.json()
-    assert data["error"] == "unauthenticated"
-    assert "redirect" in data
+    client.force_login(student)
+    response = client.get(reverse("frontend:project_detail", kwargs={"pk": project.pk}))
+    assert response.status_code == 200
+    assert project.title in response.content.decode()
+
+
+def test_project_detail_non_public_forbidden_for_non_owner():
+    student = _make_student()
+    project = _make_project(status=ProjectStatus.DRAFT)
+    client = Client()
+    client.force_login(student)
+    response = client.get(reverse("frontend:project_detail", kwargs={"pk": project.pk}))
+    assert response.status_code == 403
 
 
 def test_toggle_bookmark_requires_login():
@@ -152,6 +146,14 @@ def test_toggle_bookmark_requires_login():
     response = client.post(url)
     # Should redirect to auth page
     assert response.status_code in (302, 403)
+
+
+def test_toggle_bookmark_nonexistent_project_returns_404():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+    response = client.post(reverse("frontend:toggle_bookmark", kwargs={"pk": 999999}))
+    assert response.status_code == 404
 
 
 def test_bookmarked_project_appears_in_bookmarks_tab():
@@ -220,26 +222,6 @@ def test_initiative_project_create_post_valid():
     assert "fastapi" in project.tech_tags
 
 
-def test_initiative_project_requires_consent_for_supervisor_data():
-    student = _make_student()
-    client = Client()
-    client.force_login(student)
-
-    response = client.post(
-        reverse("frontend:initiative_project_create"),
-        {
-            "title": "My Initiative",
-            "description": "A detailed description of my project idea.",
-            "tech_tags_raw": "Python, FastAPI",
-            "team_size": "2",
-            "supervisor_name": "Иванов Иван Иванович",
-        },
-    )
-
-    assert response.status_code == 200
-    assert "подтвердите наличие его согласия" in response.content.decode()
-
-
 def test_initiative_project_create_post_invalid_no_title():
     student = _make_student()
     client = Client()
@@ -272,13 +254,39 @@ def test_initiative_project_with_supervisor():
             "tech_tags_raw": "",
             "team_size": "1",
             "supervisor_name": "Иванов Иван Иванович",
-            "supervisor_personal_data_consent": "1",
+            "supervisor_personal_data_consent": "on",
         },
     )
 
     project = Project.objects.filter(owner=student, source_type=ProjectSourceType.INITIATIVE).last()
     assert project is not None
     assert project.supervisor_name == "Иванов Иван Иванович"
+
+
+def test_initiative_project_supervisor_without_consent_rejected():
+    student = _make_student()
+    client = Client()
+    client.force_login(student)
+
+    response = client.post(
+        reverse("frontend:initiative_project_create"),
+        {
+            "title": "Supervised project",
+            "description": "Project with supervisor but no consent.",
+            "tech_tags_raw": "",
+            "team_size": "1",
+            "supervisor_name": "Петров Пётр Петрович",
+        },
+    )
+    assert response.status_code == 200
+    assert not Project.objects.filter(owner=student, source_type=ProjectSourceType.INITIATIVE).exists()
+
+
+def test_initiative_project_create_redirects_anonymous():
+    client = Client()
+    response = client.get(reverse("frontend:initiative_project_create"))
+    assert response.status_code == 302
+    assert "/auth/" in response["Location"]
 
 
 # ---------------------------------------------------------------------------
@@ -301,67 +309,8 @@ def test_initiative_projects_visible_in_applications_tab():
 
 
 # ---------------------------------------------------------------------------
-# Profile view
-# ---------------------------------------------------------------------------
-
-
-def test_profile_view_shows_student_stats():
-    student = _make_student()
-    _project = _make_project(
-        owner=student,
-        source_type=ProjectSourceType.INITIATIVE,
-        status=ProjectStatus.ON_MODERATION,
-    )
-    bm_project = _make_project()
-    student.profile.set_favorite_project_ids([bm_project.pk])
-    student.profile.save(update_fields=["favorite_project_ids"])
-    client = Client()
-    client.force_login(student)
-    response = client.get(reverse("frontend:profile"))
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "Заявок подано" in content or "Заявка подана" in content or "Заявки подано" in content
-    assert "Закладка" in content or "Закладок" in content or "Закладки" in content
-    assert "Инициативный проект" in content or "Инициативных проекта" in content
-
-
-def test_profile_update_post_saves_name():
-    student = _make_student()
-    client = Client()
-    client.force_login(student)
-
-    response = client.post(
-        reverse("frontend:profile"),
-        {
-            "full_name": "Иван Петров",
-            "bio": "Студент МИЭМ",
-            "interests_raw": "Python,Django",
-        },
-    )
-    # Should redirect after save
-    assert response.status_code == 302
-
-    student.refresh_from_db()
-    assert student.first_name == "Иван"
-    assert student.last_name == "Петров"
-
-    student.profile.refresh_from_db()
-    assert student.profile.bio == "Студент МИЭМ"
-    assert "python" in student.profile.interests
-
-
-# ---------------------------------------------------------------------------
 # Legacy redirects
 # ---------------------------------------------------------------------------
-
-
-def test_application_list_redirects_to_projects_tab():
-    student = _make_student()
-    client = Client()
-    client.force_login(student)
-    response = client.get(reverse("frontend:application_list"))
-    assert response.status_code == 302
-    assert "tab=applications" in response["Location"]
 
 
 def test_recommendations_view_redirects_to_projects_tab():
@@ -371,29 +320,6 @@ def test_recommendations_view_redirects_to_projects_tab():
     response = client.get(reverse("frontend:recommendations"))
     assert response.status_code == 302
     assert "tab=recs" in response["Location"]
-
-
-# ---------------------------------------------------------------------------
-# Moderation: only CPPRP can access
-# ---------------------------------------------------------------------------
-
-
-def test_moderation_list_forbidden_for_student():
-    student = _make_student()
-    client = Client()
-    client.force_login(student)
-    response = client.get(reverse("frontend:moderation_list"))
-    # Should be 403 (PermissionDenied from @moderator_required), 404, or redirect
-    assert response.status_code in (302, 403, 404)
-
-
-def test_moderation_list_accessible_for_cpprp():
-    cpprp = _make_cpprp()
-    client = Client()
-    client.force_login(cpprp)
-    response = client.get(reverse("frontend:moderation_list"))
-    assert response.status_code == 200
-    assert "Очередь модерации" in response.content.decode()
 
 
 # ---------------------------------------------------------------------------
@@ -570,9 +496,30 @@ def test_project_submit_moderation_forbidden_for_non_owner():
     client = Client()
     client.force_login(other)
     response = client.post(reverse("frontend:project_submit_moderation", kwargs={"pk": project.pk}))
-    assert response.status_code in (302, 403, 404)
+    assert response.status_code == 403
     project.refresh_from_db()
     assert project.status == ProjectStatus.DRAFT
+
+
+def test_project_submit_moderation_invalid_state_returns_error():
+    customer = _make_customer()
+    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
+    client = Client()
+    client.force_login(customer)
+    response = client.post(reverse("frontend:project_submit_moderation", kwargs={"pk": project.pk}))
+    assert response.status_code == 302
+    project.refresh_from_db()
+    assert project.status == ProjectStatus.PUBLISHED
+
+
+def test_project_delete_non_deletable_status_redirects():
+    customer = _make_customer()
+    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
+    client = Client()
+    client.force_login(customer)
+    response = client.post(reverse("frontend:project_delete", kwargs={"pk": project.pk}))
+    assert response.status_code == 302
+    assert Project.objects.filter(pk=project.pk).exists()
 
 
 # ---------------------------------------------------------------------------
@@ -650,183 +597,15 @@ def test_customer_sees_own_projects():
     assert other.title not in content
 
 
-# ---------------------------------------------------------------------------
-# Application review (accept / reject)
-# ---------------------------------------------------------------------------
-
-
-def test_project_applications_accessible_by_owner():
+def test_customer_project_list_total_count_in_context():
     customer = _make_customer()
-    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
+    _make_project(owner=customer, status=ProjectStatus.DRAFT)
+    _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
     client = Client()
     client.force_login(customer)
-    response = client.get(reverse("frontend:project_applications", kwargs={"pk": project.pk}))
+    response = client.get(reverse("frontend:project_list"))
     assert response.status_code == 200
-
-
-def test_project_applications_forbidden_for_non_owner():
-    owner = _make_customer()
-    other = _make_customer()
-    project = _make_project(owner=owner, status=ProjectStatus.PUBLISHED)
-    client = Client()
-    client.force_login(other)
-    response = client.get(reverse("frontend:project_applications", kwargs={"pk": project.pk}))
-    assert response.status_code in (302, 403, 404)
-
-
-def test_review_application_accept():
-    customer = _make_customer()
-    student = _make_student()
-    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED, team_size=3)
-    application = Application.objects.create(
-        project=project, applicant=student, status=ApplicationStatus.SUBMITTED
-    )
-    client = Client()
-    client.force_login(customer)
-    response = client.post(
-        reverse("frontend:review_application", kwargs={"pk": application.pk}),
-        {"decision": "accept", "comment": ""},
-    )
-    assert response.status_code == 302
-    application.refresh_from_db()
-    assert application.status == ApplicationStatus.ACCEPTED
-
-
-def test_review_application_reject_requires_comment():
-    customer = _make_customer()
-    student = _make_student()
-    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
-    application = Application.objects.create(
-        project=project, applicant=student, status=ApplicationStatus.SUBMITTED
-    )
-    client = Client()
-    client.force_login(customer)
-    # Reject without comment — should fail
-    client.post(
-        reverse("frontend:review_application", kwargs={"pk": application.pk}),
-        {"decision": "reject", "comment": ""},
-    )
-    # Either re-renders with error or redirects (depends on implementation)
-    application.refresh_from_db()
-    assert application.status == ApplicationStatus.SUBMITTED  # not changed
-
-
-def test_review_application_reject_with_comment():
-    customer = _make_customer()
-    student = _make_student()
-    project = _make_project(owner=customer, status=ProjectStatus.PUBLISHED)
-    application = Application.objects.create(
-        project=project, applicant=student, status=ApplicationStatus.SUBMITTED
-    )
-    client = Client()
-    client.force_login(customer)
-    response = client.post(
-        reverse("frontend:review_application", kwargs={"pk": application.pk}),
-        {
-            "decision": "reject",
-            "comment": "К сожалению, ваша заявка не соответствует требованиям проекта.",
-        },
-    )
-    assert response.status_code == 302
-    application.refresh_from_db()
-    assert application.status == ApplicationStatus.REJECTED
-
-
-def test_review_application_forbidden_for_non_owner():
-    owner = _make_customer()
-    other = _make_customer()
-    student = _make_student()
-    project = _make_project(owner=owner, status=ProjectStatus.PUBLISHED)
-    application = Application.objects.create(
-        project=project, applicant=student, status=ApplicationStatus.SUBMITTED
-    )
-    client = Client()
-    client.force_login(other)
-    response = client.post(
-        reverse("frontend:review_application", kwargs={"pk": application.pk}),
-        {"decision": "accept", "comment": ""},
-    )
-    assert response.status_code in (302, 403, 404)
-    application.refresh_from_db()
-    assert application.status == ApplicationStatus.SUBMITTED
-
-
-# ---------------------------------------------------------------------------
-# Moderation workflow (approve / reject)
-# ---------------------------------------------------------------------------
-
-
-def test_moderation_decide_approve():
-    cpprp = _make_cpprp()
-    customer = _make_customer()
-    project = _make_project(owner=customer, status=ProjectStatus.ON_MODERATION)
-    client = Client()
-    client.force_login(cpprp)
-    response = client.post(
-        reverse("frontend:moderate_project_decide", kwargs={"pk": project.pk}),
-        {"decision": "approve", "comment": ""},
-    )
-    assert response.status_code == 302
-    project.refresh_from_db()
-    assert project.status == ProjectStatus.PUBLISHED
-
-
-def test_moderation_decide_reject_with_comment():
-    cpprp = _make_cpprp()
-    customer = _make_customer()
-    project = _make_project(owner=customer, status=ProjectStatus.ON_MODERATION)
-    client = Client()
-    client.force_login(cpprp)
-    response = client.post(
-        reverse("frontend:moderate_project_decide", kwargs={"pk": project.pk}),
-        {
-            "decision": "reject",
-            "comment": (  # noqa: E501 — long Cyrillic string is intentional test fixture
-                "Проект не соответствует требованиям программы. Необходимо доработать описание, "
-                "добавить конкретные результаты, критерии отбора и ожидаемый формат работы."
-            ),
-        },
-    )
-    assert response.status_code == 302
-    project.refresh_from_db()
-    assert project.status == ProjectStatus.REJECTED
-
-
-def test_moderation_decide_forbidden_for_student():
-    student = _make_student()
-    customer = _make_customer()
-    project = _make_project(owner=customer, status=ProjectStatus.ON_MODERATION)
-    client = Client()
-    client.force_login(student)
-    response = client.post(
-        reverse("frontend:moderate_project_decide", kwargs={"pk": project.pk}),
-        {"decision": "approve", "comment": ""},
-    )
-    assert response.status_code in (302, 403, 404)
-    project.refresh_from_db()
-    assert project.status == ProjectStatus.ON_MODERATION
-
-
-def test_moderation_queue_shows_pending_projects():
-    """Moderation queue shows ON_MODERATION projects; DRAFT projects are not shown."""
-    cpprp = _make_cpprp()
-    customer = _make_customer()
-    pending_title = f"Pending {_uid()}"
-    draft_title = f"Draft {_uid()}"
-    pending_project = _make_project(
-        owner=customer, status=ProjectStatus.ON_MODERATION, title=pending_title
-    )
-    _make_project(owner=customer, status=ProjectStatus.DRAFT, title=draft_title)
-    Project.objects.filter(pk=pending_project.pk).update(
-        updated_at=timezone.now() - timedelta(days=3650)
-    )
-    client = Client()
-    client.force_login(cpprp)
-    response = client.get(reverse("frontend:moderation_list"))
-    assert response.status_code == 200
-    queue_titles = {project.title for project in response.context["page_obj"].paginator.object_list}
-    assert pending_title in queue_titles
-    assert draft_title not in queue_titles
+    assert response.context["total_count"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -868,238 +647,3 @@ def test_project_create_duplicate_tags_deduplicated():
         assert project.tech_tags.count("python") == 1
 
 
-# ---------------------------------------------------------------------------
-# Auth: registration validation
-# ---------------------------------------------------------------------------
-
-
-def test_register_rejects_invalid_email():
-    """'sdfsdf' is not a valid email — registration must be refused."""
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": "sdfsdf",
-            "password": "ValidPass1",
-            "role": "student",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "корректный email" in content
-    # No user should have been created with that garbage email
-    assert not User.objects.filter(email="sdfsdf").exists()
-
-
-def test_register_rejects_email_missing_domain():
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": "user@",
-            "password": "ValidPass1",
-            "role": "student",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 200
-    assert "корректный email" in response.content.decode()
-
-
-def test_register_accepts_valid_email():
-    uid = _uid()
-    email = f"valid_{uid}@edu.hse.ru"
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": email,
-            "password": "ValidPass1",
-            "role": "student",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 302
-    assert User.objects.filter(email=email).exists()
-
-
-def test_register_rejects_short_password():
-    uid = _uid()
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": f"u_{uid}@edu.hse.ru",
-            "password": "short",
-            "role": "student",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 200
-    assert "не менее 8" in response.content.decode()
-
-
-def test_register_rejects_duplicate_email():
-    uid = _uid()
-    email = f"dup_{uid}@edu.hse.ru"
-    User.objects.create_user(username=f"existing_{uid}", email=email, password="somepass1")
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": email,
-            "password": "ValidPass1",
-            "role": "student",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 200
-    assert "уже существует" in response.content.decode()
-
-
-def test_register_requires_personal_data_consent():
-    uid = _uid()
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": f"noconsent_{uid}@example.com",
-            "password": "ValidPass1",
-            "role": "student",
-        },
-    )
-    assert response.status_code == 200
-    assert "необходимо согласие" in response.content.decode()
-    assert not User.objects.filter(email=f"noconsent_{uid}@example.com").exists()
-
-
-def test_register_rejects_non_corporate_student_email():
-    uid = _uid()
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": f"student_{uid}@gmail.com",
-            "password": "ValidPass1",
-            "role": "student",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 200
-    assert "только для корпоративных адресов" in response.content.decode()
-    assert not User.objects.filter(email=f"student_{uid}@gmail.com").exists()
-
-
-def test_register_external_customer_creates_access_request():
-    uid = _uid()
-    email = f"external_{uid}@example.com"
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": email,
-            "password": "ValidPass1",
-            "name": "External Teacher",
-            "role": "customer",
-            "personal_data_consent": "1",
-        },
-        follow=True,
-    )
-    assert response.status_code == 200
-    assert ExternalAccessRequest.objects.filter(email=email).exists()
-    request_obj = ExternalAccessRequest.objects.get(email=email)
-    assert request_obj.status == ExternalAccessRequestStatus.PENDING
-    assert not User.objects.filter(email=email).exists()
-
-
-def test_register_allowlisted_external_customer_is_created():
-    uid = _uid()
-    email = f"approved_{uid}@example.com"
-    ExternalAccessAllowlist.objects.create(email=email, allowed_role=UserRole.CUSTOMER)
-
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {
-            "tab": "register",
-            "email": email,
-            "password": "ValidPass1",
-            "name": "Approved External",
-            "role": "customer",
-            "personal_data_consent": "1",
-        },
-    )
-    assert response.status_code == 302
-    assert User.objects.filter(email=email).exists()
-
-
-def test_login_rejects_invalid_email_format():
-    client = Client()
-    response = client.post(
-        reverse("frontend:auth"),
-        {"tab": "login", "email": "notanemail", "password": "anything"},
-    )
-    assert response.status_code == 200
-    assert "корректный email" in response.content.decode()
-
-
-def test_legal_pages_are_public():
-    client = Client()
-    privacy = client.get(reverse("frontend:privacy_policy"))
-    consent = client.get(reverse("frontend:personal_data_consent"))
-
-    assert privacy.status_code == 200
-    assert "Политика обработки персональных данных" in privacy.content.decode()
-    assert consent.status_code == 200
-    assert "Согласие на обработку персональных данных" in consent.content.decode()
-
-
-def test_cpprp_can_approve_external_access_request():
-    cpprp = _make_cpprp()
-    access_request = ExternalAccessRequest.objects.create(
-        email=f"pending-{_uid()}@example.com",
-        requested_role=UserRole.CUSTOMER,
-        full_name="Pending User",
-    )
-    client = Client()
-    client.force_login(cpprp)
-
-    response = client.post(
-        reverse("frontend:cpprp_external_request_approve", kwargs={"pk": access_request.pk}),
-    )
-
-    assert response.status_code == 302
-    access_request.refresh_from_db()
-    assert access_request.status == ExternalAccessRequestStatus.APPROVED
-    assert ExternalAccessAllowlist.objects.filter(
-        email=access_request.email,
-        is_active=True
-    ).exists()
-
-
-def test_cpprp_can_bulk_add_external_allowlist():
-    cpprp = _make_cpprp()
-    client = Client()
-    client.force_login(cpprp)
-
-    response = client.post(
-        reverse("frontend:cpprp_external_allowlist_bulk_add"),
-        {
-            "emails": "teacher1@example.com\nteacher2@example.com",
-            "allowed_role": UserRole.CUSTOMER,
-            "note": "Known invited teachers",
-        },
-    )
-
-    assert response.status_code == 302
-    assert ExternalAccessAllowlist.objects.filter(email="teacher1@example.com").exists()
-    assert ExternalAccessAllowlist.objects.filter(email="teacher2@example.com").exists()

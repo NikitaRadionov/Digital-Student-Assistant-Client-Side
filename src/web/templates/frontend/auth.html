@@ -3,6 +3,8 @@
 
 {% block title %}Вход — Digital Student Assistant{% endblock %}
 
+{% block header_nav %}{% endblock %}
+
 {% block content %}
 
 <div style="min-height:70vh;display:flex;align-items:center;justify-content:center;">
@@ -44,12 +46,12 @@
     <!-- ══════════════════ LOGIN FORM ══════════════════ -->
     <div id="panel-login" style="{% if active_tab != 'login' %}display:none;{% endif %}padding:1.75rem;">
 
-      {% if login_errors.general %}
+      {% if login_form.non_field_errors %}
       <div class="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg">
         <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        <p class="text-sm text-red-700">{{ login_errors.general }}</p>
+        <p class="text-sm text-red-700">{{ login_form.non_field_errors.0 }}</p>
       </div>
       {% endif %}
 
@@ -83,12 +85,12 @@
         <div class="mb-4">
           <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input id="login-email" type="email" name="email"
-                 value="{{ login_email }}"
+                 value="{{ login_form.email.value|default:'' }}"
                  placeholder="you@example.com"
                  autocomplete="email"
-                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if login_errors.email %}border-red-400{% else %}border-gray-200{% endif %}">
-          {% if login_errors.email %}
-            <p class="mt-1 text-xs text-red-500">{{ login_errors.email }}</p>
+                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if login_form.email.errors %}border-red-400{% else %}border-gray-200{% endif %}">
+          {% if login_form.email.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ login_form.email.errors.0 }}</p>
           {% endif %}
         </div>
 
@@ -99,10 +101,10 @@
             <input id="login-password" type="password" name="password"
                    placeholder="••••••••"
                    autocomplete="current-password"
-                   class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if login_errors.password %}border-red-400{% else %}border-gray-200{% endif %}">
+                   class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if login_form.password.errors %}border-red-400{% else %}border-gray-200{% endif %}">
           </div>
-          {% if login_errors.password %}
-            <p class="mt-1 text-xs text-red-500">{{ login_errors.password }}</p>
+          {% if login_form.password.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ login_form.password.errors.0 }}</p>
           {% endif %}
         </div>
 
@@ -121,12 +123,12 @@
     <!-- ══════════════════ REGISTER FORM ══════════════════ -->
     <div id="panel-register" style="{% if active_tab != 'register' %}display:none;{% endif %}padding:1.75rem;">
 
-      {% if register_errors.general %}
+      {% if register_form.non_field_errors %}
       <div class="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg">
         <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        <p class="text-sm text-red-700">{{ register_errors.general }}</p>
+        <p class="text-sm text-red-700">{{ register_form.non_field_errors.0 }}</p>
       </div>
       {% endif %}
 
@@ -141,12 +143,12 @@
             Имя <span class="text-gray-400 font-normal">(необязательно)</span>
           </label>
           <input id="reg-name" type="text" name="name"
-                 value="{{ reg_name }}"
+                 value="{{ register_form.name.value|default:'' }}"
                  placeholder="Иван Иванов"
                  autocomplete="name"
-                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_errors.name %}border-red-400{% else %}border-gray-200{% endif %}">
-          {% if register_errors.name %}
-            <p class="mt-1 text-xs text-red-500">{{ register_errors.name }}</p>
+                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_form.name.errors %}border-red-400{% else %}border-gray-200{% endif %}">
+          {% if register_form.name.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ register_form.name.errors.0 }}</p>
           {% endif %}
         </div>
 
@@ -154,12 +156,12 @@
         <div class="mb-4">
           <label for="reg-email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-400">*</span></label>
           <input id="reg-email" type="email" name="email"
-                 value="{{ reg_email }}"
-                 placeholder="you@example.com"
+                 value="{{ register_form.email.value|default:'' }}"
+                 placeholder="you@hse.ru"
                  autocomplete="email"
-                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_errors.email %}border-red-400{% else %}border-gray-200{% endif %}">
-          {% if register_errors.email %}
-            <p class="mt-1 text-xs text-red-500">{{ register_errors.email }}</p>
+                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_form.email.errors %}border-red-400{% else %}border-gray-200{% endif %}">
+          {% if register_form.email.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ register_form.email.errors.0 }}</p>
           {% endif %}
         </div>
 
@@ -169,9 +171,23 @@
           <input id="reg-password" type="password" name="password"
                  placeholder="Не менее 8 символов"
                  autocomplete="new-password"
-                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_errors.password %}border-red-400{% else %}border-gray-200{% endif %}">
-          {% if register_errors.password %}
-            <p class="mt-1 text-xs text-red-500">{{ register_errors.password }}</p>
+                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_form.password.errors %}border-red-400{% else %}border-gray-200{% endif %}">
+          {% if register_form.password.errors %}
+            {% for error in register_form.password.errors %}
+              <p class="mt-1 text-xs text-red-500">{{ error }}</p>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <!-- Confirm password -->
+        <div class="mb-4">
+          <label for="reg-password2" class="block text-sm font-medium text-gray-700 mb-1">Повторите пароль <span class="text-red-400">*</span></label>
+          <input id="reg-password2" type="password" name="password2"
+                 placeholder="••••••••"
+                 autocomplete="new-password"
+                 class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if register_form.password2.errors %}border-red-400{% else %}border-gray-200{% endif %}">
+          {% if register_form.password2.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ register_form.password2.errors.0 }}</p>
           {% endif %}
         </div>
 
@@ -181,26 +197,26 @@
           <div class="grid grid-cols-2 gap-2">
 
             <label id="role-student-label"
-                   style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:10px;border:2px solid {% if reg_role == 'student' or not reg_role %}#2563eb{% else %}#e5e7eb{% endif %};background:{% if reg_role == 'student' or not reg_role %}#eff6ff{% else %}'#fff'{% endif %};cursor:pointer;transition:all 0.15s;">
+                   style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:10px;border:2px solid {% if register_form.role.value == 'customer' %}#e5e7eb{% else %}#2563eb{% endif %};background:{% if register_form.role.value == 'customer' %}#fff{% else %}#eff6ff{% endif %};cursor:pointer;transition:all 0.15s;">
               <input type="radio" name="role" value="student"
-                     {% if reg_role == "student" or not reg_role %}checked{% endif %}
+                     {% if register_form.role.value != 'customer' %}checked{% endif %}
                      class="sr-only" onchange="updateRoleUI()">
-              <svg style="width:22px;height:22px;color:{% if reg_role == 'student' or not reg_role %}#2563eb{% else %}#9ca3af{% endif %};" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <svg style="width:22px;height:22px;color:{% if register_form.role.value == 'customer' %}#9ca3af{% else %}#2563eb{% endif %};" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5zM12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
               </svg>
-              <span style="font-size:0.8125rem;font-weight:600;color:{% if reg_role == 'student' or not reg_role %}#1d4ed8{% else %}#374151{% endif %};">Студент</span>
+              <span style="font-size:0.8125rem;font-weight:600;color:{% if register_form.role.value == 'customer' %}#374151{% else %}#1d4ed8{% endif %};">Студент</span>
               <span style="font-size:0.7rem;color:#9ca3af;text-align:center;">Ищу проект</span>
             </label>
 
             <label id="role-customer-label"
-                   style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:10px;border:2px solid {% if reg_role == 'customer' %}#2563eb{% else %}#e5e7eb{% endif %};background:{% if reg_role == 'customer' %}#eff6ff{% else %}'#fff'{% endif %};cursor:pointer;transition:all 0.15s;">
+                   style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:10px;border:2px solid {% if register_form.role.value == 'customer' %}#2563eb{% else %}#e5e7eb{% endif %};background:{% if register_form.role.value == 'customer' %}#eff6ff{% else %}#fff{% endif %};cursor:pointer;transition:all 0.15s;">
               <input type="radio" name="role" value="customer"
-                     {% if reg_role == "customer" %}checked{% endif %}
+                     {% if register_form.role.value == 'customer' %}checked{% endif %}
                      class="sr-only" onchange="updateRoleUI()">
-              <svg style="width:22px;height:22px;color:{% if reg_role == 'customer' %}#2563eb{% else %}#9ca3af{% endif %};" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <svg style="width:22px;height:22px;color:{% if register_form.role.value == 'customer' %}#2563eb{% else %}#9ca3af{% endif %};" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
               </svg>
-              <span style="font-size:0.8125rem;font-weight:600;color:{% if reg_role == 'customer' %}#1d4ed8{% else %}#374151{% endif %};">Заказчик</span>
+              <span style="font-size:0.8125rem;font-weight:600;color:{% if register_form.role.value == 'customer' %}#1d4ed8{% else %}#374151{% endif %};">Заказчик</span>
               <span style="font-size:0.7rem;color:#9ca3af;text-align:center;">Создаю проекты</span>
             </label>
 
@@ -212,17 +228,17 @@
             <input type="checkbox"
                    name="personal_data_consent"
                    value="1"
-                   {% if reg_personal_data_consent %}checked{% endif %}
+                   {% if register_form.personal_data_consent.value %}checked{% endif %}
                    class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
             <span class="text-sm text-gray-600">
-              Я даю
-              <a href="{% url 'frontend:personal_data_consent' %}" class="text-blue-600 hover:text-blue-700">согласие на обработку персональных данных</a>
-              и подтверждаю, что ознакомился(ась) с
-              <a href="{% url 'frontend:privacy_policy' %}" class="text-blue-600 hover:text-blue-700">политикой обработки персональных данных</a>.
+              I agree to the
+              <a href="{% url 'frontend:personal_data_consent' %}" class="text-blue-600 hover:text-blue-700">personal data consent</a>
+              and confirm that I have read the
+              <a href="{% url 'frontend:privacy_policy' %}" class="text-blue-600 hover:text-blue-700">privacy policy</a>.
             </span>
           </label>
-          {% if register_errors.personal_data_consent %}
-            <p class="mt-2 text-xs text-red-500">{{ register_errors.personal_data_consent }}</p>
+          {% if register_form.personal_data_consent.errors %}
+            <p class="mt-2 text-xs text-red-500">{{ register_form.personal_data_consent.errors.0 }}</p>
           {% endif %}
         </div>
 
@@ -241,7 +257,7 @@
   </div>
 
   <p class="text-center text-xs text-gray-400 mt-5">
-    Политика и согласие доступны до регистрации и из интерфейса платформы.
+    Продолжая, вы соглашаетесь с условиями использования платформы.
   </p>
 
 </div>

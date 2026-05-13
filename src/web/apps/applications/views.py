@@ -6,13 +6,13 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics
 from rest_framework import serializers as drf_serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Application, ApplicationStatus
 from .serializers import ApplicationSerializer
-from .transitions import review_application
+from .services import create_application, delete_application, review_application_service
 
 
 @extend_schema_view(
@@ -35,11 +35,11 @@ class ApplicationListCreateAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         project = serializer.validated_data["project"]
         if project.status not in ProjectStatus.catalog_values():
-            raise ValidationError(
+            raise drf_serializers.ValidationError(
                 {"project": ["Applications are allowed only for projects visible in catalog."]}
             )
         if project.application_window_state != "open":
-            raise ValidationError(
+            raise drf_serializers.ValidationError(
                 {
                     "project": [
                         (
@@ -62,9 +62,7 @@ class ApplicationListCreateAPIView(generics.ListCreateAPIView):
                 target_type="application",
                 target_id=str(application.pk),
                 actor_id=getattr(self.request.user, "id", None),
-                dedupe_key=f"application.created:\
-                    {application.pk}:\
-                        {application.created_at.isoformat() if application.created_at else ''}",
+                dedupe_key=f"application.created:{application.pk}:{application.created_at.isoformat() if application.created_at else ''}",
             ),
         )
         create_notifications(
@@ -76,9 +74,7 @@ class ApplicationListCreateAPIView(generics.ListCreateAPIView):
                 target_type="application",
                 target_id=str(application.pk),
                 actor_id=getattr(self.request.user, "id", None),
-                dedupe_key=f"application.received:\
-                    {application.pk}:\
-                        {application.created_at.isoformat() if application.created_at else ''}",
+                dedupe_key=f"application.received:{application.pk}:{application.created_at.isoformat() if application.created_at else ''}",
             ),
         )
         emit_event(
@@ -133,9 +129,7 @@ class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
                 target_type="application",
                 target_id=str(aggregate_id),
                 actor_id=getattr(self.request.user, "id", None),
-                dedupe_key=f"application.deleted:\
-                    {aggregate_id}:\
-                        {updated_at.isoformat() if updated_at else payload['deleted_at']}",
+                dedupe_key=f"application.deleted:{aggregate_id}:{updated_at.isoformat() if updated_at else payload['deleted_at']}",
             ),
         )
         create_notifications(
@@ -147,9 +141,7 @@ class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
                 target_type="application",
                 target_id=str(aggregate_id),
                 actor_id=getattr(self.request.user, "id", None),
-                dedupe_key=f"application.withdrawn:\
-                    {aggregate_id}:\
-                        {updated_at.isoformat() if updated_at else payload['deleted_at']}",
+                dedupe_key=f"application.withdrawn:{aggregate_id}:{updated_at.isoformat() if updated_at else payload['deleted_at']}",
             ),
         )
         emit_event(
@@ -163,7 +155,7 @@ class ApplicationRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIV
 
 class ApplicationReviewInputSerializer(drf_serializers.Serializer):
     decision = drf_serializers.ChoiceField(choices=["accept", "reject"])
-    comment = drf_serializers.CharField(required=False, allow_blank=True, default="")
+    comment  = drf_serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ApplicationReviewAPIView(APIView):
@@ -176,20 +168,20 @@ class ApplicationReviewAPIView(APIView):
         responses=ApplicationSerializer,
     )
     def post(self, request, pk: int):
-        payload = ApplicationReviewInputSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
+        input_serializer = ApplicationReviewInputSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
 
         application = generics.get_object_or_404(
             Application.objects.select_related("project", "project__owner", "applicant"),
             pk=pk,
         )
-        review_application(
+        review_application_service(
             application=application,
             actor=request.user,
-            decision=payload.validated_data["decision"],
-            comment=payload.validated_data["comment"],
+            decision=input_serializer.validated_data["decision"],
+            comment=input_serializer.validated_data["comment"],
         )
-        decision = payload.validated_data["decision"]
+        decision = input_serializer.validated_data["decision"]
         if decision == "accept":
             title = "Заявка принята"
             event_type = "application.review.accepted"
@@ -198,7 +190,7 @@ class ApplicationReviewAPIView(APIView):
             title = "Заявка отклонена"
             event_type = "application.review.rejected"
             body = "Ваша заявка отклонена."
-        comment_text = (payload.validated_data.get("comment") or "").strip()
+        comment_text = (input_serializer.validated_data.get("comment") or "").strip()
         if comment_text:
             body = f"{body}\n\nКомментарий: {comment_text}"
         create_notifications(
@@ -210,9 +202,7 @@ class ApplicationReviewAPIView(APIView):
                 target_type="application",
                 target_id=str(application.pk),
                 actor_id=getattr(request.user, "id", None),
-                dedupe_key=f"{event_type}:\
-                    {application.pk}:\
-                        {application.reviewed_at.isoformat() if application.reviewed_at else ''}",
+                dedupe_key=f"{event_type}:{application.pk}:{application.reviewed_at.isoformat() if application.reviewed_at else ''}",
             ),
         )
         create_notifications(
@@ -224,9 +214,7 @@ class ApplicationReviewAPIView(APIView):
                 target_type="application",
                 target_id=str(application.pk),
                 actor_id=getattr(request.user, "id", None),
-                dedupe_key=f"application.reviewed:\
-                    {application.pk}:\
-                        {application.reviewed_at.isoformat() if application.reviewed_at else ''}",
+                dedupe_key=f"application.reviewed:{application.pk}:{application.reviewed_at.isoformat() if application.reviewed_at else ''}",
             ),
         )
         emit_event(
@@ -236,5 +224,6 @@ class ApplicationReviewAPIView(APIView):
             payload=ApplicationSerializer(application, context={"request": request}).data,
             idempotency_key=f"application.changed:{application.pk}:{application.updated_at.isoformat()}:review",
         )
+
         serializer = ApplicationSerializer(application, context={"request": request})
         return Response(serializer.data)

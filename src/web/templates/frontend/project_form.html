@@ -113,7 +113,7 @@
       </div>
 
       <!-- ── Team size ─────────────────────────────────────────── -->
-      <div class="mb-8">
+      <div class="mb-5">
         <label for="id_team_size" class="block text-sm font-medium text-gray-700 mb-1">
           Размер команды <span class="text-red-400">*</span>
         </label>
@@ -132,6 +132,106 @@
         </div>
         {% if form.team_size.errors %}
           <p class="mt-1 text-xs text-red-500">{{ form.team_size.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <!-- ── Additional fields ─────────────────────────────────── -->
+      <hr class="my-6 border-gray-100">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Дополнительно</p>
+
+      <!-- work_format + hours_per_week (inline row) -->
+      <div class="mb-5 flex flex-col sm:flex-row gap-4">
+        <div class="flex-1">
+          <label for="id_work_format" class="block text-sm font-medium text-gray-700 mb-1">
+            Формат работы
+          </label>
+          <input
+            id="id_work_format"
+            type="text"
+            name="work_format"
+            value="{{ form.work_format.value|default:'' }}"
+            maxlength="255"
+            placeholder="Очный, дистанционный, гибридный..."
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.work_format.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.work_format.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.work_format.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <div style="width:140px;">
+          <label for="id_hours_per_week" class="block text-sm font-medium text-gray-700 mb-1">
+            Часов в неделю
+          </label>
+          <input
+            id="id_hours_per_week"
+            type="number"
+            name="hours_per_week"
+            value="{{ form.hours_per_week.value|default:'' }}"
+            min="0"
+            max="168"
+            step="0.5"
+            placeholder="—"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white text-center placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.hours_per_week.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.hours_per_week.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.hours_per_week.errors.0 }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- is_paid + application_deadline (inline row) -->
+      <div class="mb-5 flex flex-col sm:flex-row gap-4">
+        <div style="width:160px;">
+          <label for="id_is_paid" class="block text-sm font-medium text-gray-700 mb-1">
+            Оплачивается
+          </label>
+          <select
+            id="id_is_paid"
+            name="is_paid"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.is_paid.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+            {% with cur=form.is_paid.value|default:'' %}
+            <option value=""  {% if cur == ''    %}selected{% endif %}>Не указано</option>
+            <option value="yes" {% if cur == 'yes' %}selected{% endif %}>Да</option>
+            <option value="no"  {% if cur == 'no'  %}selected{% endif %}>Нет</option>
+            {% endwith %}
+          </select>
+          {% if form.is_paid.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.is_paid.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <div class="flex-1">
+          <label for="id_application_deadline" class="block text-sm font-medium text-gray-700 mb-1">
+            Дедлайн подачи заявок
+          </label>
+          <input
+            id="id_application_deadline"
+            type="date"
+            name="application_deadline"
+            value="{{ form.application_deadline.value|date:'Y-m-d'|default:'' }}"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.application_deadline.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.application_deadline.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.application_deadline.errors.0 }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- selection_criteria -->
+      <div class="mb-8">
+        <label for="id_selection_criteria" class="block text-sm font-medium text-gray-700 mb-1">
+          Критерии отбора
+        </label>
+        <textarea
+          id="id_selection_criteria"
+          name="selection_criteria"
+          rows="3"
+          placeholder="Что важно для вас при выборе студентов: навыки, опыт, мотивация..."
+          class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y transition-colors {% if form.selection_criteria.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          style="font-family:inherit;line-height:1.6;"
+        >{{ form.selection_criteria.value|default:'' }}</textarea>
+        {% if form.selection_criteria.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.selection_criteria.errors.0 }}</p>
         {% endif %}
       </div>
 
@@ -199,22 +299,15 @@
     tags.forEach(function(tag, i) {
       var chip = document.createElement('span');
       chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;';
-
-      var tagText = document.createTextNode(tag);
-      chip.appendChild(tagText);
-
-      var removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.dataset.i = String(i);
-      removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#60a5fa;font-size:14px;line-height:1;padding:0 0 0 2px;';
-      removeBtn.title = 'Удалить';
-      removeBtn.textContent = '×';
-      removeBtn.addEventListener('click', function() {
+      chip.innerHTML =
+        tag +
+        '<button type="button" data-i="' + i + '" ' +
+        'style="background:none;border:none;cursor:pointer;color:#60a5fa;font-size:14px;line-height:1;padding:0 0 0 2px;" ' +
+        'title="Удалить">×</button>';
+      chip.querySelector('button').addEventListener('click', function() {
         tags.splice(parseInt(this.dataset.i), 1);
         render(); sync();
       });
-      chip.appendChild(removeBtn);
-
       chipsEl.appendChild(chip);
     });
   }

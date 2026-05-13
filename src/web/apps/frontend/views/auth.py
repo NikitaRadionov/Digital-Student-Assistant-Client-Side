@@ -1,5 +1,6 @@
 from urllib.parse import urlencode, urlsplit
 
+from apps.frontend.forms import LoginForm, RegisterForm
 from apps.users.email_verification import (
     VERIFICATION_GENERIC_RESEND_MESSAGE,
     is_user_pending_email_verification,
@@ -11,50 +12,38 @@ from apps.users.models import (
 )
 from apps.users.registration import register_user
 from django.contrib import messages
-from django.contrib.auth import (
-    authenticate,
-    get_user_model,
-)
-from django.contrib.auth import (
-    login as auth_login,
-)
-from django.contrib.auth import (
-    logout as auth_logout,
-)
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email as _validate_email_fmt
+from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
+from django.contrib.auth import login as auth_login
+from django.contrib.auth import logout as auth_logout
+from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.views import View
 from django.views.decorators.http import require_POST
 
-_CONSENT_ACCEPTED_VALUES = {"1", "true", "on", "yes"}
+User = get_user_model()
 
 
-def _check_email_fmt(email: str) -> bool:
-    try:
-        _validate_email_fmt(email)
-        return True
-    except ValidationError:
-        return False
-
-
-def _safe_redirect_target(request, raw_next_url: str) -> str:
+def _safe_redirect_target(raw_next_url: str) -> str:
     candidate = (raw_next_url or "").strip()
     if not candidate:
         return reverse("frontend:project_list")
-
-    # Resolve user-provided "next" only to server allowlisted internal routes.
     path = urlsplit(candidate).path
-    allowed_paths_to_names = {
-        reverse("frontend:project_list"): "frontend:project_list",
-        reverse("frontend:auth"): "frontend:auth",
-    }
-
-    route_name = allowed_paths_to_names.get(path)
-    if route_name:
-        return reverse(route_name)
-
+    if path in {reverse("frontend:project_list"), reverse("frontend:auth")}:
+        return path
     return reverse("frontend:project_list")
+
+
+def _build_unique_username(email: str) -> str:
+    base = email.split("@")[0]
+    username, n = base, 1
+    while User.objects.filter(username=username).exists():
+        username = f"{base}{n}"
+        n += 1
+    return username
+
 
 
 def _verification_redirect_url(email: str, next_url: str = "") -> str:
@@ -64,155 +53,257 @@ def _verification_redirect_url(email: str, next_url: str = "") -> str:
     return f"{reverse('frontend:verify_email')}?{urlencode(query)}"
 
 
-def auth_view(request):
-    """Combined login / register page. Redirects to project_list if already authenticated."""
-    if request.user.is_authenticated:
-        return redirect("frontend:project_list")
+def _corporate_email_domains() -> set[str]:
+    configured = getattr(settings, "ALLOWED_CORPORATE_EMAIL_DOMAINS", ["edu.hse.ru"])
+    return {domain.strip().lower() for domain in configured if domain.strip()}
 
-    next_url = request.GET.get("next", "").strip()
-    active_tab = request.POST.get("tab", "login")
-    login_errors: dict = {}
-    register_errors: dict = {}
 
-    # Saved POST values to re-fill form on error
-    login_email = ""
-    reg_email = ""
-    reg_name = ""
-    reg_role = UserRole.STUDENT
-    reg_personal_data_consent = False
-    login_requires_email_verification = False
+def _is_corporate_email(email: str) -> bool:
+    normalized = normalize_email(email)
+    _, _, domain = normalized.partition("@")
+    return bool(domain) and domain in _corporate_email_domains()
 
-    if request.method == "POST":
-        next_url = request.POST.get("next", next_url).strip()
 
-        # ── LOGIN ──────────────────────────────────────────────────────────
-        if active_tab == "login":
-            login_email = request.POST.get("email", "").strip()
-            password = request.POST.get("password", "")
+def _external_email_is_allowlisted(email: str, role: str) -> bool:
+    return ExternalAccessAllowlist.objects.filter(
+        email=normalize_email(email),
+        allowed_role=role,
+        is_active=True,
+    ).exists()
 
-            if not login_email:
-                login_errors["email"] = "Введите email."
-            elif not _check_email_fmt(login_email):
-                login_errors["email"] = "Введите корректный email-адрес."
-            if not password:
-                login_errors["password"] = "Введите пароль."
 
-            if not login_errors:
-                User = get_user_model()
-                user_obj = None
-                try:
-                    user_obj = User.objects.get(email__iexact=login_email)
-                    user = authenticate(request, username=user_obj.username, password=password)
-                except User.DoesNotExist:
-                    user = None
-
-                if user is not None:
-                    auth_login(request, user)
-                    safe_next = _safe_redirect_target(request, next_url)
-                    return redirect(safe_next)
-                else:
-                    if (
-                            user_obj is not None
-                            and is_user_pending_email_verification(user_obj)
-                            and user_obj.check_password(password)
-                    ):
-                        login_requires_email_verification = True
-                        login_errors["general"] = "Подтвердите email, чтобы войти."
-                    else:
-                        login_errors["general"] = "Неверный email или пароль."
-
-        # ── REGISTER ───────────────────────────────────────────────────────
-        elif active_tab == "register":
-            reg_email = request.POST.get("email", "").strip().lower()
-            password = request.POST.get("password", "")
-            reg_name = request.POST.get("name", "").strip()
-            reg_role = request.POST.get("role", UserRole.STUDENT)
-            reg_personal_data_consent = (
-                    request.POST.get("personal_data_consent", "").strip().lower()
-                    in _CONSENT_ACCEPTED_VALUES
-            )
-
-            result = register_user(
-                email=reg_email,
-                password=password,
-                full_name=reg_name,
-                role=reg_role,
-                personal_data_consent=reg_personal_data_consent,
-            )
-            if result.success:
-                if result.status == "access_request_created":
-                    messages.info(request, result.message)
-                    return redirect("frontend:auth")
-
-                messages.success(request, result.message)
-                return redirect(_verification_redirect_url(result.normalized_email, next_url))
-
-            register_errors = {
-                field: messages_list[0] for field, messages_list in result.field_errors.items()
-            }
-
-    return render(
-        request,
-        "frontend/auth.html",
-        {
-            "active_tab": active_tab,
-            "next": next_url,
-            "login_errors": login_errors,
-            "register_errors": register_errors,
-            "login_requires_email_verification": login_requires_email_verification,
-            "login_email": login_email,
-            "reg_email": reg_email,
-            "reg_name": reg_name,
-            "reg_role": reg_role,
-            "reg_personal_data_consent": reg_personal_data_consent,
-            "UserRole": UserRole,
+def _create_or_refresh_external_access_request(
+    *,
+    email: str,
+    full_name: str,
+    requested_role: str,
+) -> None:
+    ExternalAccessRequest.objects.update_or_create(
+        email=normalize_email(email),
+        defaults={
+            "full_name":      full_name,
+            "requested_role": requested_role,
+            "status":         ExternalAccessRequestStatus.PENDING,
+            "decision_note":  "",
+            "reviewed_by":    None,
+            "reviewed_at":    None,
         },
     )
 
 
-def verify_email_view(request):
-    if request.user.is_authenticated:
-        return redirect("frontend:project_list")
+class AuthView(View):
 
-    next_url = request.GET.get("next", "").strip()
-    email = request.GET.get("email", "").strip().lower()
-    code = ""
-    errors: dict[str, str] = {}
+    template_name = "frontend/auth.html"
 
-    if request.method == "POST":
-        email = request.POST.get("email", email).strip().lower()
-        code = request.POST.get("code", "").strip()
-        next_url = request.POST.get("next", next_url).strip()
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("frontend:project_list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        next_url = request.GET.get("next", "").strip()
+        return render(request, self.template_name, self._build_context(
+            active_tab="login",
+            next_url=next_url,
+            login_form=LoginForm(),
+            register_form=RegisterForm(),
+        ))
+
+    def post(self, request):
+        active_tab = request.POST.get("tab", "login")
+        next_url   = request.POST.get("next", request.GET.get("next", "")).strip()
+
+        is_login_post    = active_tab == "login"
+        is_register_post = active_tab == "register"
+
+        login_form    = LoginForm(request.POST if is_login_post    else None)
+        register_form = RegisterForm(request.POST if is_register_post else None)
+
+        login_requires_email_verification = False
+
+        if is_login_post and login_form.is_valid():
+            response, login_requires_email_verification = self._handle_login(
+                request, login_form, next_url
+            )
+            if response is not None:
+                return response
+
+        elif is_register_post and register_form.is_valid():
+            response = self._handle_register(request, register_form, next_url)
+            if response is not None:
+                return response
+
+        login_email = login_form["email"].value() or "" if login_form.is_bound else ""
+
+        return render(request, self.template_name, self._build_context(
+            active_tab=active_tab,
+            next_url=next_url,
+            login_form=login_form,
+            register_form=register_form,
+            login_requires_email_verification=login_requires_email_verification,
+            login_email=login_email,
+        ))
+
+    @staticmethod
+    def _handle_login(
+        request,
+        form: LoginForm,
+        next_url: str,
+    ) -> tuple[HttpResponse | None, bool]:
+        email    = form.cleaned_data["email"]
+        password = form.cleaned_data["password"]
+
+        user_obj = User.objects.filter(email__iexact=email).first()
+        user     = (
+            authenticate(request, username=user_obj.username, password=password)
+            if user_obj else None
+        )
+
+        if user is not None:
+            auth_login(request, user)
+            return redirect(_safe_redirect_target(next_url)), False
+
+        if (
+            user_obj is not None
+            and is_user_pending_email_verification(user_obj)
+            and user_obj.check_password(password)
+        ):
+            form.add_error(None, "Подтвердите email, чтобы войти.")
+            return None, True
+
+        form.add_error(None, "Неверный email или пароль.")
+        return None, False
+
+    @staticmethod
+    def _handle_register(
+        request,
+        form: RegisterForm,
+        next_url: str,
+    ) -> HttpResponse | None:
+        email    = form.cleaned_data["email"]
+        password = form.cleaned_data["password"]
+        name     = form.cleaned_data["name"]
+        role     = form.cleaned_data["role"]
+
+        if (
+            role == UserRole.CUSTOMER
+            and not _is_corporate_email(email)
+            and not _external_email_is_allowlisted(email, role)
+        ):
+            _create_or_refresh_external_access_request(
+                email=email,
+                full_name=name,
+                requested_role=role,
+            )
+            messages.info(
+                request,
+                "Заявка на внешний доступ отправлена. После одобрения ЦППРП "
+                "вы сможете завершить регистрацию с этим email.",
+            )
+            return redirect("frontend:auth")
+
+        with transaction.atomic():
+            new_user = User.objects.create_user(
+                username=_build_unique_username(email),
+                email=email,
+                password=password,
+                is_active=False,
+            )
+            parts = name.split(None, 1)
+            if parts:
+                new_user.first_name = parts[0]
+                new_user.last_name  = parts[1] if len(parts) > 1 else ""
+                new_user.save(update_fields=["first_name", "last_name"])
+
+            UserProfile.objects.create(user=new_user, role=role)
+            create_signup_verification(new_user)
+
+        messages.success(request, "Мы отправили код подтверждения на указанный email.")
+        return redirect(_verification_redirect_url(email, next_url))
+
+    def _build_context(
+        self,
+        *,
+        active_tab: str = "login",
+        next_url: str = "",
+        login_form: LoginForm | None = None,
+        register_form: RegisterForm | None = None,
+        login_requires_email_verification: bool = False,
+        login_email: str = "",
+    ) -> dict:
+        return {
+            "active_tab":    active_tab,
+            "next":          next_url,
+            "login_form":    login_form or LoginForm(),
+            "register_form": register_form or RegisterForm(),
+            "login_requires_email_verification": login_requires_email_verification,
+            "login_email":   login_email,
+            "UserRole":      UserRole,
+        }
+
+
+class VerifyEmailView(View):
+
+    template_name = "frontend/verify_email.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("frontend:project_list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        return render(request, self.template_name, self._build_context(
+            email=request.GET.get("email", "").strip().lower(),
+            next_url=request.GET.get("next", "").strip(),
+        ))
+
+    def post(self, request):
+        email    = request.POST.get("email", "").strip().lower()
+        code     = request.POST.get("code", "").strip()
+        next_url = request.POST.get("next", "").strip()
+        errors: dict[str, str] = {}
 
         result = verify_signup_code(email=email, code=code)
         if result.success and result.user is not None:
             auth_login(request, result.user)
             messages.success(request, f"Добро пожаловать, {result.user.username}!")
-            return redirect(_safe_redirect_target(request, next_url))
+            return redirect(_safe_redirect_target(next_url))
 
         if result.error_code == "missing_fields":
             if not email:
                 errors["email"] = "Введите email."
             if not code:
                 errors["code"] = "Введите код подтверждения."
-        errors["general"] = result.message
+        else:
+            errors["general"] = result.message
 
-    return render(
-        request,
-        "frontend/verify_email.html",
-        {
-            "email": email,
-            "code": code,
-            "next": next_url,
-            "errors": errors,
+        return render(request, self.template_name, self._build_context(
+            email=email,
+            code=code,
+            next_url=next_url,
+            errors=errors,
+        ))
+
+    def _build_context(
+        self,
+        *,
+        email: str = "",
+        code: str = "",
+        next_url: str = "",
+        errors: dict[str, str] | None = None,
+    ) -> dict:
+        return {
+            "email":   email,
+            "code":    code,
+            "next":    next_url,
+            "errors":  errors or {},
             "generic_resend_message": VERIFICATION_GENERIC_RESEND_MESSAGE,
-        },
-    )
+        }
 
 
 @require_POST
 def resend_email_code_view(request):
-    email = request.POST.get("email", "").strip().lower()
+    email    = request.POST.get("email", "").strip().lower()
     next_url = request.POST.get("next", "").strip()
 
     result = resend_signup_code(email)
@@ -231,15 +322,3 @@ def resend_email_code_view(request):
 def logout_view(request):
     auth_logout(request)
     return redirect("frontend:auth")
-
-
-def error_403(request, exception=None):
-    return render(request, "403.html", status=403)
-
-
-def error_404(request, exception=None):
-    return render(request, "404.html", status=404)
-
-
-def error_500(request):
-    return render(request, "500.html", status=500)

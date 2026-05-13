@@ -89,58 +89,15 @@
       </div>
       {% endif %}
 
-      <!-- Decision actions -->
-      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start;">
-
-        <!-- Approve (no comment needed) -->
-        <form method="post" action="{% url 'frontend:moderate_project_decide' project.pk %}">
-          {% csrf_token %}
-          <input type="hidden" name="decision" value="approve">
-          <button type="submit"
-                  class="w-full py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
-            ✓ Одобрить
-          </button>
-        </form>
-
-        <!-- Reject (requires comment ≥ 100 chars) -->
-        <div>
-          <button type="button"
-                  onclick="toggleModReject({{ project.pk }})"
-                  id="mod-reject-btn-{{ project.pk }}"
-                  class="w-full py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
-            ✕ Отклонить
-          </button>
-
-          <!-- Reject form (hidden by default) -->
-          <div id="mod-reject-form-{{ project.pk }}" style="display:none;margin-top:8px;">
-            <form method="post" action="{% url 'frontend:moderate_project_decide' project.pk %}">
-              {% csrf_token %}
-              <input type="hidden" name="decision" value="reject">
-              <textarea name="comment"
-                        rows="3"
-                        minlength="100"
-                        required
-                        placeholder="Укажите причину отклонения (мин. 100 символов)..."
-                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 resize-none mb-1"
-                        oninput="updateModCounter(this, {{ project.pk }})"></textarea>
-              <div class="flex items-center justify-between mb-2">
-                <span id="mod-counter-{{ project.pk }}" class="text-xs text-gray-400">0 / 100 мин.</span>
-              </div>
-              <div class="flex gap-2">
-                <button type="button"
-                        onclick="toggleModReject({{ project.pk }})"
-                        class="flex-1 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors">
-                  Отмена
-                </button>
-                <button type="submit"
-                        class="flex-1 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
-                  Подтвердить отклонение
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
+      <!-- Actions -->
+      <div>
+        <a href="{% url 'frontend:moderation_detail' project.pk %}"
+           class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+          Рассмотреть
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
       </div>
     </div>
 
@@ -184,20 +141,4 @@
 </div>
 {% endif %}
 
-{% endblock %}
-
-{% block extra_js %}
-<script>
-  function toggleModReject(pk) {
-    var form = document.getElementById('mod-reject-form-' + pk);
-    form.style.display = form.style.display === 'none' ? '' : 'none';
-  }
-
-  function updateModCounter(textarea, pk) {
-    var counter = document.getElementById('mod-counter-' + pk);
-    var len = textarea.value.length;
-    counter.textContent = len + ' / 100 мин.';
-    counter.style.color = len >= 100 ? '#16a34a' : '#9ca3af';
-  }
-</script>
 {% endblock %}

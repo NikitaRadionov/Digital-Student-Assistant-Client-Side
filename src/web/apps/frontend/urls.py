@@ -5,13 +5,11 @@ from . import views
 app_name = "frontend"
 
 urlpatterns = [
-    # Legal
+    # Auth
     path("legal/privacy/", views.privacy_policy_view, name="privacy_policy"),
     path("legal/consent/", views.personal_data_consent_view, name="personal_data_consent"),
-
-    # Auth
-    path("auth/", views.auth_view, name="auth"),
-    path("auth/verify/", views.verify_email_view, name="verify_email"),
+    path("auth/", views.AuthView.as_view(), name="auth"),
+    path("auth/verify/", views.VerifyEmailView.as_view(), name="verify_email"),
     path("auth/verify/resend/", views.resend_email_code_view, name="resend_email_code"),
     path("logout/", views.logout_view, name="logout"),
 
@@ -20,7 +18,6 @@ urlpatterns = [
     path("projects/create/", views.project_create, name="project_create"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),
     path("projects/<int:pk>/edit/", views.project_edit, name="project_edit"),
-    path("projects/<int:pk>/apply/", views.apply_to_project, name="apply_to_project"),
     path(
         "projects/<int:pk>/submit-application/",
         views.submit_application,
@@ -39,6 +36,12 @@ urlpatterns = [
         name="initiative_project_create",
     ),
 
+    # Initiative proposals (student lifecycle)
+    path("initiatives/", views.initiative_proposal_list, name="initiative_proposal_list"),
+    path("initiatives/<int:pk>/edit/", views.initiative_proposal_edit, name="initiative_proposal_edit"),
+    path("initiatives/<int:pk>/submit/", views.initiative_proposal_submit, name="initiative_proposal_submit"),
+    path("initiatives/<int:pk>/delete/", views.initiative_proposal_delete, name="initiative_proposal_delete"),
+
     # Applications
     path("applications/", views.application_list, name="application_list"),
     path(
@@ -48,12 +51,12 @@ urlpatterns = [
     ),
     path(
         "applications/<int:pk>/withdraw/",
-        views.withdraw_application,
+        views.WithdrawApplicationView.as_view(),
         name="withdraw_application",
     ),
     path(
         "applications/<int:pk>/edit/",
-        views.edit_application,
+        views.EditApplicationView.as_view(),
         name="edit_application",
     ),
 
@@ -71,64 +74,32 @@ urlpatterns = [
     # CPPRP administration dashboard
     path("cpprp/", views.cpprp_dashboard, name="cpprp_dashboard"),
     path("cpprp/deadlines/create/", views.cpprp_deadline_create, name="cpprp_deadline_create"),
-    path(
-        "cpprp/deadlines/<int:pk>/toggle/",
-        views.cpprp_deadline_toggle,
-        name="cpprp_deadline_toggle"
-    ),
-    path(
-        "cpprp/deadlines/<int:pk>/delete/",
-        views.cpprp_deadline_delete,
-        name="cpprp_deadline_delete"
-    ),
-    path(
-        "cpprp/templates/create/",
-        views.cpprp_template_create,
-        name="cpprp_template_create"
-    ),
-    path(
-        "cpprp/templates/<int:pk>/toggle/",
-        views.cpprp_template_toggle,
-        name="cpprp_template_toggle"),
-    path(
-        "cpprp/templates/<int:pk>/delete/",
-        views.cpprp_template_delete,
-        name="cpprp_template_delete"
-    ),
-    path(
-        "cpprp/external-access/allow/",
-        views.cpprp_external_allowlist_bulk_add,
-        name="cpprp_external_allowlist_bulk_add",
-    ),
-    path(
-        "cpprp/external-access/allowlist/<int:pk>/toggle/",
-        views.cpprp_external_allowlist_toggle,
-        name="cpprp_external_allowlist_toggle",
-    ),
-    path(
-        "cpprp/external-access/requests/<int:pk>/approve/",
-        views.cpprp_external_request_approve,
-        name="cpprp_external_request_approve",
-    ),
-    path(
-        "cpprp/external-access/requests/<int:pk>/reject/",
-        views.cpprp_external_request_reject,
-        name="cpprp_external_request_reject",
-    ),
+    path("cpprp/deadlines/<int:pk>/toggle/", views.cpprp_deadline_toggle, name="cpprp_deadline_toggle"),
+    path("cpprp/deadlines/<int:pk>/delete/", views.cpprp_deadline_delete, name="cpprp_deadline_delete"),
+    path("cpprp/templates/create/", views.cpprp_template_create, name="cpprp_template_create"),
+    path("cpprp/templates/<int:pk>/toggle/", views.cpprp_template_toggle, name="cpprp_template_toggle"),
+    path("cpprp/templates/<int:pk>/delete/", views.cpprp_template_delete, name="cpprp_template_delete"),
+    path("cpprp/external/allowlist/add/", views.cpprp_external_allowlist_bulk_add, name="cpprp_external_allowlist_bulk_add"),
+    path("cpprp/external/requests/<int:pk>/approve/", views.cpprp_external_request_approve, name="cpprp_external_request_approve"),
+    path("cpprp/external/requests/<int:pk>/reject/", views.cpprp_external_request_reject, name="cpprp_external_request_reject"),
+    path("cpprp/external/allowlist/<int:pk>/toggle/", views.cpprp_external_allowlist_toggle, name="cpprp_external_allowlist_toggle"),
     path("cpprp/export/projects/", views.cpprp_export_projects, name="cpprp_export_projects"),
-    path(
-        "cpprp/export/projects.xlsx",
-        views.cpprp_export_projects_xlsx,
-        name="cpprp_export_projects_xlsx",
-    ),
-    path(
-        "cpprp/export/applications/",
-        views.cpprp_export_applications,
-        name="cpprp_export_applications"
-    ),
+    path("cpprp/export/projects.xlsx", views.cpprp_export_projects_xlsx, name="cpprp_export_projects_xlsx"),
+    path("cpprp/export/applications/", views.cpprp_export_applications, name="cpprp_export_applications"),
+
+    # CPPRP initiative moderation
+    path("cpprp/initiatives/", views.initiative_moderation_list, name="initiative_moderation_list"),
+    path("cpprp/initiatives/<int:pk>/", views.initiative_moderation_detail, name="initiative_moderation_detail"),
+    path("cpprp/initiatives/<int:pk>/decide/", views.initiative_moderate_decide, name="initiative_moderate_decide"),
+
+    # Faculty catalog
+    path("faculty/", views.faculty_list, name="faculty_list"),
+    path("faculty/<str:source_key>/", views.faculty_detail, name="faculty_detail"),
 
     # Moderation
     path("moderation/", views.moderation_list, name="moderation_list"),
+    path("moderation/<int:pk>/", views.moderation_detail, name="moderation_detail"),
+    path("moderation/<int:pk>/fields/", views.moderation_update_fields, name="moderation_update_fields"),
     path(
         "moderation/<int:pk>/decide/",
         views.moderate_project_decide,

@@ -1,11 +1,14 @@
 from uuid import uuid4
 
+import pytest
 from apps.users.email_verification import create_signup_verification, extract_code_from_message
 from apps.users.models import EmailVerificationCode, UserProfile, UserRole
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import Client, override_settings
 from django.urls import reverse
+
+pytestmark = pytest.mark.django_db
 
 
 def _make_unverified_user(*, email: str = "pending@example.com"):
@@ -30,9 +33,10 @@ def test_registration_sends_code_and_keeps_user_logged_out():
         reverse("frontend:auth"),
         data={
             "tab": "register",
-            "email": email,
-            "password": "password123",
-            "name": "New Student",
+                "email": email,
+                "password": "ValidPass1!",
+                "password2": "ValidPass1!",
+                "name": "New Student",
             "role": UserRole.STUDENT,
             "personal_data_consent": "1",
         },

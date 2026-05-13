@@ -1,37 +1,4 @@
-"""
-test_unit_functions.py – parametrised unit tests for pure helper functions.
-
-No database access is required; Django is configured by pytest-django via
-DJANGO_SETTINGS_MODULE in pyproject.toml, but no @pytest.mark.django_db
-markers are needed here.
-"""
-
 import pytest
-
-# ===========================================================================
-# _check_email_fmt  (apps.frontend.views.auth)
-# ===========================================================================
-
-
-@pytest.mark.parametrize(
-    "email, expected",
-    [
-        ("user@example.com", True),
-        ("user+tag@example.com", True),
-        ("first.last@sub.domain.org", True),
-        ("", False),
-        ("notanemail", False),
-        ("user@", False),
-        ("@nodomain.com", False),
-        ("spaces here@example.com", False),
-        ("user@@example.com", False),
-    ],
-)
-def test_check_email_fmt(email, expected):
-    from apps.frontend.views.auth import _check_email_fmt
-
-    assert _check_email_fmt(email) == expected
-
 
 # ===========================================================================
 # _tokenize  (apps.recs.services)
@@ -121,34 +88,6 @@ def test_normalize_remote_items(items, expected):
 
 
 # ===========================================================================
-# _parse_interests  (apps.frontend.views.profile)
-# ===========================================================================
-
-
-@pytest.mark.parametrize(
-    "raw, expected",
-    [
-        ("", []),
-        ("Python", ["python"]),
-        ("Python, Django", ["python", "django"]),
-        ("Python, python, PYTHON", ["python"]),
-        # Leading/trailing whitespace is stripped
-        ("  Machine Learning  ,  NLP  ", ["machine learning", "nlp"]),
-        # Empty segments from consecutive commas are dropped
-        (",,", []),
-        # Mixed case dedup with multiple values
-        ("A, B, A, C, b", ["a", "b", "c"]),
-        # Single trailing comma
-        ("Python,", ["python"]),
-    ],
-)
-def test_parse_interests(raw, expected):
-    from apps.frontend.views.profile import _parse_interests
-
-    assert _parse_interests(raw) == expected
-
-
-# ===========================================================================
 # ProjectFrontendForm.clean_tech_tags_raw
 #
 # No DB access needed – form validation is purely in-memory.
@@ -158,7 +97,7 @@ def test_parse_interests(raw, expected):
 
 def _project_form(tech_tags_raw: str):
     """Return a ProjectFrontendForm instance with minimal valid data."""
-    from apps.frontend.views.projects import ProjectFrontendForm
+    from apps.frontend.forms import ProjectFrontendForm
 
     return ProjectFrontendForm(
         data={
@@ -195,7 +134,7 @@ def test_tags_deduplicated_case_insensitive():
 
 
 def test_tags_too_many_raises_validation_error():
-    from apps.frontend.views.projects import _TAGS_MAX
+    from apps.frontend.forms.projects import _TAGS_MAX
 
     many_tags = ",".join(f"tag{i}" for i in range(_TAGS_MAX + 1))
     form = _project_form(many_tags)
@@ -223,12 +162,12 @@ def test_tags_too_long_single_tag_rejected():
 
 
 # ===========================================================================
-# _build_graph_data  (apps.frontend.views.projects)
+# _build_graph_data  (apps.frontend.views.projects.catalog)
 # ===========================================================================
 
 
 def test_build_graph_data_empty_input():
-    from apps.frontend.views.projects import _build_graph_data
+    from apps.frontend.views.projects.catalog import _build_graph_data
 
     nodes, edges = _build_graph_data([])
     assert nodes == []
@@ -236,7 +175,7 @@ def test_build_graph_data_empty_input():
 
 
 def test_build_graph_data_single_article_single_author():
-    from apps.frontend.views.projects import _build_graph_data
+    from apps.frontend.views.projects.catalog import _build_graph_data
 
     articles = [{"title": "Paper A", "authors": ["Alice"]}]
     nodes, edges = _build_graph_data(articles)
@@ -247,7 +186,7 @@ def test_build_graph_data_single_article_single_author():
 
 
 def test_build_graph_data_two_authors_one_article():
-    from apps.frontend.views.projects import _build_graph_data
+    from apps.frontend.views.projects.catalog import _build_graph_data
 
     articles = [{"title": "Paper A", "authors": ["Alice", "Bob"]}]
     nodes, edges = _build_graph_data(articles)
@@ -257,7 +196,7 @@ def test_build_graph_data_two_authors_one_article():
 
 
 def test_build_graph_data_repeated_coauthorship_increases_edge_weight():
-    from apps.frontend.views.projects import _build_graph_data
+    from apps.frontend.views.projects.catalog import _build_graph_data
 
     articles = [
         {"title": "Paper A", "authors": ["Alice", "Bob"]},
@@ -269,7 +208,7 @@ def test_build_graph_data_repeated_coauthorship_increases_edge_weight():
 
 
 def test_build_graph_data_node_value_equals_article_count():
-    from apps.frontend.views.projects import _build_graph_data
+    from apps.frontend.views.projects.catalog import _build_graph_data
 
     articles = [
         {"title": "P1", "authors": ["Alice", "Bob"]},

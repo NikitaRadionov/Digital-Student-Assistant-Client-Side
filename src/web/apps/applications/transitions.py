@@ -6,6 +6,10 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from .models import Application, ApplicationStatus
 
+# Minimum comment length required when rejecting an application.
+# Referenced by ReviewApplicationForm for early client-side validation.
+REVIEW_COMMENT_MIN_LEN = 50
+
 
 def _can_review_application(actor, application: Application) -> bool:
     if not getattr(actor, "is_authenticated", False):
@@ -31,9 +35,9 @@ def review_application(
     if normalized_decision not in {"accept", "reject"}:
         raise ValidationError({"decision": ["Unsupported decision. Use 'accept' or 'reject'."]})
 
-    if normalized_decision == "reject" and len(normalized_comment) < 50:
+    if normalized_decision == "reject" and len(normalized_comment) < REVIEW_COMMENT_MIN_LEN:
         raise ValidationError(
-            {"comment": ["Comment is required and must be at least 50 characters for rejection."]}
+            {"comment": [f"Comment is required and must be at least {REVIEW_COMMENT_MIN_LEN} characters for rejection."]}
         )
 
     application.status = (
