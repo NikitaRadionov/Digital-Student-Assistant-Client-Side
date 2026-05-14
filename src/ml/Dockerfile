@@ -37,6 +37,8 @@ WORKDIR /app
 COPY --from=build --chown=appuser:appgroup /opt/venv /opt/venv
 COPY --from=build --chown=appuser:appgroup /build /app
 
+RUN mkdir -p /app/data && chown appuser:appgroup /app/data
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

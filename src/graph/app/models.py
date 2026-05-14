@@ -29,3 +29,28 @@ class ReplayRequest(BaseModel):
     replay_from_id: int | None = Field(default=None, ge=1)
     batch_size: int | None = Field(default=None, ge=1, le=1000)
     events: list[GraphEvent] = Field(default_factory=list)
+
+
+class FacultyAuthorInput(BaseModel):
+    person_source_key: str
+    display_name: str = ""
+    position: int = 0
+
+
+class FacultyPersonInput(BaseModel):
+    source_key: str
+    full_name: str = ""
+    primary_unit: str = ""
+    publications_total: int = 0
+
+
+class FacultyPublicationInput(BaseModel):
+    source_publication_id: str
+    title: str = ""
+    year: int | None = None
+    authors: list[FacultyAuthorInput] = Field(default_factory=list)
+
+
+class FacultyImportRequest(BaseModel):
+    persons: list[FacultyPersonInput] = Field(default_factory=list)
+    publications: list[FacultyPublicationInput] = Field(default_factory=list)

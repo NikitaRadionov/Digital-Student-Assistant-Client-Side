@@ -1,4 +1,4 @@
-from apps.faculty.models import FacultyMatchStatus, FacultyPerson, ProjectFacultyMatch
+from apps.faculty.models import FacultyCourse, FacultyMatchStatus, FacultyPerson, ProjectFacultyMatch
 from apps.frontend.utils import LOGIN_URL
 from apps.projects.models import ProjectStatus
 from django.contrib.auth.decorators import login_required
@@ -37,7 +37,13 @@ def faculty_detail(request, source_key):
         )
         .order_by("project_id")
     )
+    courses = list(
+        FacultyCourse.objects
+        .filter(person=person)
+        .order_by("-academic_year", "title")
+    )
     return render(request, "frontend/faculty_detail.html", {
         "person":   person,
         "projects": projects,
+        "courses":  courses,
     })

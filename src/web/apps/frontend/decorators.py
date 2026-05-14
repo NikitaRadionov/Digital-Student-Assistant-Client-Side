@@ -1,22 +1,4 @@
-"""
-Role-based access control decorators for SSR frontend views.
-
-Usage
------
-    from apps.frontend.decorators import customer_required, student_required, moderator_required
-
-    @customer_required
-    def project_create(request): ...
-
-    @student_required
-    def initiative_project_create(request): ...
-
-    @moderator_required
-    def moderation_list(request): ...
-"""
-
 import functools
-
 from apps.users.models import UserRole
 from apps.users.utils import user_is_moderator
 from django.contrib import messages
@@ -25,7 +7,6 @@ from django.shortcuts import redirect
 
 
 def _get_role(user) -> str:
-    """Return the user's role string, or '' if profile is missing."""
     try:
         return user.profile.role
     except Exception:
@@ -33,13 +14,6 @@ def _get_role(user) -> str:
 
 
 def require_role(*roles: str, redirect_url: str = "frontend:project_list", message: str = ""):
-    """
-    Decorator factory that restricts a view to users with one of the given roles.
-
-    On failure redirects to *redirect_url* with an optional flash message.
-    If the user is not authenticated, the login_required decorator (applied
-    separately on the view) handles the redirect to /auth/.
-    """
 
     def decorator(view_func):
         @functools.wraps(view_func)
@@ -56,12 +30,6 @@ def require_role(*roles: str, redirect_url: str = "frontend:project_list", messa
 
 
 def moderator_required(view_func):
-    """
-    Restrict a view to CPPRP moderators and Django staff.
-
-    Raises PermissionDenied (→ 403) so the browser shows an error page rather
-    than silently redirecting; this makes access violations clearly visible.
-    """
 
     @functools.wraps(view_func)
     def wrapper(request, *args, **kwargs):
@@ -71,8 +39,6 @@ def moderator_required(view_func):
 
     return wrapper
 
-
-# Convenience shorthands -------------------------------------------------
 
 customer_required = require_role(
     UserRole.CUSTOMER,

@@ -5,7 +5,7 @@ from .base import *  # noqa: F403
 
 DEBUG = True
 SECRET_KEY = "django-insecure-dev-only-key"
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".localhost", "192.168.3.4"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".localhost", "192.168.3.4", "web"]
 INTERNAL_IPS = ["127.0.0.1"]
 
 SLOW_QUERY_THRESHOLD_MS = float(os.getenv("DJANGO_SLOW_QUERY_MS", "150"))

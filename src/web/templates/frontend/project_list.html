@@ -248,26 +248,18 @@
 {% if show_recs_tab %}
 <div id="tab-panel-recs" style="display:none;">
 
-  <!-- Mode subtitle + badge -->
-  <div class="flex items-start justify-between gap-4 mb-6">
-    <p class="text-sm text-gray-500">
-      {% if rec_mode == "semantic" %}
-        Подбор на основе ML-анализа ваших интересов
-      {% elif rec_mode %}
-        Подбор по совпадению с вашими интересами
-      {% elif has_interests %}
-        Совпадений пока нет — показаны свежие проекты
-      {% else %}
-        Новые проекты — добавьте интересы в профиле для персональных рекомендаций
-      {% endif %}
-    </p>
-    {% if rec_mode %}
-      <span class="flex-shrink-0 text-xs px-2 py-1 rounded-full
-        {% if rec_mode == 'semantic' %}bg-blue-50 text-blue-600{% else %}bg-gray-100 text-gray-500{% endif %}">
-        {% if rec_mode == "semantic" %}ML{% else %}по интересам{% endif %}
-      </span>
+  <!-- Mode subtitle -->
+  <p class="text-sm text-gray-500 mb-6">
+    {% if rec_mode == "semantic" %}
+      Подбор на основе ML-анализа ваших интересов
+    {% elif rec_mode %}
+      Подбор по совпадению с вашими интересами
+    {% elif has_interests %}
+      Совпадений пока нет — показаны свежие проекты
+    {% else %}
+      Новые проекты — добавьте интересы в профиле для персональных рекомендаций
     {% endif %}
-  </div>
+  </p>
 
   <!-- No interests hint -->
   {% if not has_interests %}

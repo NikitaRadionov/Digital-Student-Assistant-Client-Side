@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import os
 from collections import Counter, defaultdict
 from typing import cast
 
@@ -336,9 +337,29 @@ def _customer_project_list(request):
         "projects_with_pending": projects_with_pending,
     }
 
-    articles = _fetch_faculty_publications()
-    staff    = _fetch_faculty_staff()
-    graph_nodes, graph_edges = _build_graph_data(articles)
+    raw_articles = _fetch_faculty_publications()
+    articles     = raw_articles or _get_sample_articles()
+    using_faculty_data = bool(raw_articles)
+
+    raw_staff = _fetch_faculty_staff()
+    staff     = raw_staff or _get_sample_staff()
+
+    # Try Neo4j graph service first; fall back to PostgreSQL-based builder
+    graph_nodes, graph_edges = _fetch_coauthorship_graph()
+    graph_from_neo4j = bool(graph_nodes)
+    if not graph_nodes:
+        _graph_src = [a for a in articles if a.get("authors")] or _get_sample_articles()
+        graph_nodes, graph_edges = _build_graph_data(_graph_src)
+
+    if graph_from_neo4j:
+        _graph_source_label  = "neo4j"
+        _graph_articles_count = FacultyPublication.objects.count()
+    elif using_faculty_data:
+        _graph_source_label   = "postgresql"
+        _graph_articles_count = len(articles)
+    else:
+        _graph_source_label   = "demo"
+        _graph_articles_count = len(articles)
 
     article_years = sorted(
         {a["year"] for a in articles if a.get("year")},
@@ -362,10 +383,19 @@ def _customer_project_list(request):
         "sample_staff":       staff,
         "graph_nodes_json":   json.dumps(graph_nodes, ensure_ascii=False),
         "graph_edges_json":   json.dumps(graph_edges, ensure_ascii=False),
+        # faculty / graph meta
+        "using_faculty_data":         using_faculty_data,
+        "graph_source":               _graph_source_label,
+        "graph_articles_count":       _graph_articles_count,
+        "faculty_articles_displayed": len(articles),
+        "faculty_articles_total":     FacultyPublication.objects.count() if using_faculty_data else 0,
+        "faculty_staff_displayed":    len(staff),
+        "faculty_staff_total":        FacultyPerson.objects.filter(is_stale=False).count() if using_faculty_data else 0,
+        "faculty_courses_total":      0,
     })
 
 
-def _fetch_faculty_publications(limit: int = 8) -> list[dict]:
+def _fetch_faculty_publications(limit: int = 30) -> list[dict]:
     cache_key = f"faculty:pubs:{limit}"
     cached    = cache.get(cache_key)
     if cached is not None:
@@ -406,7 +436,7 @@ def _fetch_faculty_publications(limit: int = 8) -> list[dict]:
         return []
 
 
-def _fetch_faculty_staff(limit: int = 8) -> list[dict]:
+def _fetch_faculty_staff(limit: int = 50) -> list[dict]:
     cache_key = f"faculty:staff:{limit}"
     cached    = cache.get(cache_key)
     if cached is not None:
@@ -484,3 +514,149 @@ def _build_graph_data(articles):
         })
 
     return nodes, edges
+
+
+_GRAPH_CACHE_KEY = "graph:coauthorship"
+_GRAPH_CACHE_TTL = 1800  # 30 min — данные меняются редко
+
+
+def _fetch_coauthorship_graph() -> tuple[list, list]:
+    """Try to fetch co-authorship graph from the graph microservice (Neo4j).
+
+    Returns (nodes, edges) in vis.js format, or ([], []) if the service is
+    unavailable or not configured — caller falls back to PostgreSQL-based graph.
+    """
+    import requests as _requests  # local import: avoid hard dep if not installed
+
+    base_url = os.getenv("GRAPH_SERVICE_URL", "").rstrip("/")
+    if not base_url:
+        return [], []
+
+    cached = cache.get(_GRAPH_CACHE_KEY)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+
+    try:
+        resp = _requests.get(f"{base_url}/coauthorship", timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        nodes: list = data.get("nodes") or []
+        edges: list = data.get("edges") or []
+        if nodes:
+            cache.set(_GRAPH_CACHE_KEY, (nodes, edges), timeout=_GRAPH_CACHE_TTL)
+        return nodes, edges
+    except Exception:
+        logger.warning("graph service /coauthorship fetch failed", exc_info=True)
+        return [], []
+
+
+def _get_sample_articles() -> list[dict]:
+    return [
+        {
+            "title": "Методы глубокого обучения для анализа естественного языка",
+            "authors": ["Иванов А.С.", "Петрова М.В.", "Сидоров К.Н."],
+            "venue": "Computational Linguistics and Intellectual Technologies",
+            "year": 2024,
+            "doi_url": "",
+            "keywords": ["NLP", "deep learning", "transformers"],
+            "direction": "Статья",
+        },
+        {
+            "title": "Рекомендательные системы на основе графовых нейронных сетей",
+            "authors": ["Петрова М.В.", "Козлов Д.А.", "Новикова А.И."],
+            "venue": "Journal of Intelligent Information Systems",
+            "year": 2024,
+            "doi_url": "",
+            "keywords": ["GNN", "recommender systems", "collaborative filtering"],
+            "direction": "Статья",
+        },
+        {
+            "title": "Оптимизация распределённых вычислений в облачных средах",
+            "authors": ["Иванов А.С.", "Смирнова О.В."],
+            "venue": "Distributed Computing and Applications",
+            "year": 2023,
+            "doi_url": "",
+            "keywords": ["cloud computing", "distributed systems", "optimization"],
+            "direction": "Статья",
+        },
+        {
+            "title": "Анализ временных рядов методами машинного обучения",
+            "authors": ["Козлов Д.А.", "Смирнова О.В.", "Сидоров К.Н."],
+            "venue": "Machine Learning and Data Analysis",
+            "year": 2023,
+            "doi_url": "",
+            "keywords": ["time series", "LSTM", "forecasting"],
+            "direction": "Статья",
+        },
+        {
+            "title": "Безопасность программного обеспечения: автоматическое обнаружение уязвимостей",
+            "authors": ["Новикова А.И.", "Иванов А.С."],
+            "venue": "Information Security and Cryptography",
+            "year": 2024,
+            "doi_url": "",
+            "keywords": ["security", "vulnerability detection", "static analysis"],
+            "direction": "Статья",
+        },
+        {
+            "title": "Компьютерное зрение для задач медицинской диагностики",
+            "authors": ["Петрова М.В.", "Сидоров К.Н.", "Козлов Д.А."],
+            "venue": "Medical Image Analysis",
+            "year": 2023,
+            "doi_url": "",
+            "keywords": ["computer vision", "medical imaging", "CNN"],
+            "direction": "Статья",
+        },
+    ]
+
+
+def _get_sample_staff() -> list[dict]:
+    return [
+        {
+            "name": "Иванов Алексей Сергеевич",
+            "position": "Доцент",
+            "department": "Департамент программной инженерии",
+            "research_areas": ["машинное обучение", "NLP", "безопасность ПО"],
+            "works_count": 42,
+            "profile_url": "",
+        },
+        {
+            "name": "Петрова Мария Владимировна",
+            "position": "Старший преподаватель",
+            "department": "Школа анализа данных",
+            "research_areas": ["рекомендательные системы", "NLP", "компьютерное зрение"],
+            "works_count": 38,
+            "profile_url": "",
+        },
+        {
+            "name": "Козлов Дмитрий Андреевич",
+            "position": "Доцент",
+            "department": "Департамент информационных технологий",
+            "research_areas": ["анализ данных", "графовые алгоритмы", "временные ряды"],
+            "works_count": 31,
+            "profile_url": "",
+        },
+        {
+            "name": "Смирнова Ольга Владимировна",
+            "position": "Профессор",
+            "department": "Школа анализа данных",
+            "research_areas": ["распределённые системы", "анализ данных"],
+            "works_count": 57,
+            "profile_url": "",
+        },
+        {
+            "name": "Новикова Анастасия Игоревна",
+            "position": "Преподаватель",
+            "department": "Центр разработки программного обеспечения",
+            "research_areas": ["безопасность ПО", "статический анализ"],
+            "works_count": 19,
+            "profile_url": "",
+        },
+        {
+            "name": "Сидоров Кирилл Николаевич",
+            "position": "Доцент",
+            "department": "Департамент программной инженерии",
+            "research_areas": ["машинное обучение", "компьютерное зрение"],
+            "works_count": 28,
+            "profile_url": "",
+        },
+    ]

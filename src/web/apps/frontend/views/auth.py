@@ -3,14 +3,21 @@ from urllib.parse import urlencode, urlsplit
 from apps.frontend.forms import LoginForm, RegisterForm
 from apps.users.email_verification import (
     VERIFICATION_GENERIC_RESEND_MESSAGE,
+    create_signup_verification,
     is_user_pending_email_verification,
     resend_signup_code,
     verify_signup_code,
 )
 from apps.users.models import (
+    ExternalAccessAllowlist,
+    ExternalAccessRequest,
+    ExternalAccessRequestStatus,
+    UserProfile,
     UserRole,
+    normalize_email,
 )
 from apps.users.registration import register_user
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model

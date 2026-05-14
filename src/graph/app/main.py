@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 
 from . import metrics
 from .graph_store import GraphStore, Neo4jGraphStore
-from .models import ProjectRequest, ReplayRequest, SyncRequest
+from .models import FacultyImportRequest, ProjectRequest, ReplayRequest, SyncRequest
 from .outbox_client import HttpOutboxClient, OutboxClient
 from .projector import GraphProjector
 from .settings import GraphSettings, load_settings
@@ -150,6 +150,41 @@ def create_app(
             **summary,
             "checkpoint": checkpoint,
         }
+
+    @app.post("/faculty/import")
+    async def faculty_import(payload: FacultyImportRequest, request: Request) -> dict[str, Any]:
+        """Bulk-import FacultyPerson nodes and Publication/AUTHORED edges from Django PostgreSQL."""
+        graph_store: GraphStore = request.app.state.graph_store
+        try:
+            result = graph_store.import_faculty(
+                persons=[p.model_dump() for p in payload.persons],
+                publications=[
+                    {
+                        **pub.model_dump(exclude={"authors"}),
+                        "authors": [a.model_dump() for a in pub.authors],
+                    }
+                    for pub in payload.publications
+                ],
+            )
+        except Exception as exc:
+            logger.exception("faculty/import failed")
+            raise HTTPException(status_code=503, detail=f"Faculty import failed: {exc}") from exc
+        return {"status": "ok", **result}
+
+    @app.get("/coauthorship")
+    async def coauthorship(request: Request, limit: int = 150) -> dict[str, Any]:
+        """Return co-authorship graph nodes/edges in vis.js format.
+
+        Queries Neo4j for FacultyPerson pairs that share at least one Publication.
+        limit caps the number of strongest co-author pairs returned (default 150).
+        """
+        graph_store: GraphStore = request.app.state.graph_store
+        try:
+            result = graph_store.get_coauthorship_graph(limit=min(max(1, limit), 500))
+        except Exception as exc:
+            logger.exception("coauthorship graph query failed")
+            raise HTTPException(status_code=503, detail=f"Graph query failed: {exc}") from exc
+        return result
 
     @app.post("/project")
     async def project_events(payload: ProjectRequest, request: Request) -> dict[str, Any]:

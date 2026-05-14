@@ -30,6 +30,12 @@ class GraphStore(Protocol):
 
     def set_checkpoint_mirror(self, *, consumer: str, last_acked_event_id: int) -> None: ...
 
+    def get_coauthorship_graph(self, *, limit: int = 150) -> dict[str, Any]: ...
+
+    def import_faculty(
+        self, *, persons: list[dict[str, Any]], publications: list[dict[str, Any]]
+    ) -> dict[str, int]: ...
+
     def close(self) -> None: ...
 
 
@@ -391,6 +397,7 @@ class Neo4jGraphStore:
             session.run(
                 _cypher("""
                 MERGE (p:Project {project_id: $project_id})
+                WITH p
                 OPTIONAL MATCH (p)-[old_match:SUPERVISED_BY_FACULTY]->(:FacultyPerson)
                 DELETE old_match
                 """),
@@ -475,6 +482,145 @@ class Neo4jGraphStore:
 
         with self._driver.session() as session:
             session.run(query, params).consume()
+
+    def get_coauthorship_graph(self, *, limit: int = 150) -> dict[str, Any]:
+        """Return co-authorship graph in vis.js format {nodes, edges}.
+
+        Finds pairs of FacultyPerson nodes that co-authored at least one Publication
+        and aggregates the shared publication count and sample titles into edge metadata.
+        """
+        query = _cypher("""
+        MATCH (a:FacultyPerson)-[:AUTHORED]->(pub:Publication)<-[:AUTHORED]-(b:FacultyPerson)
+        WHERE a.source_key < b.source_key
+        WITH a, b,
+             collect(pub.title)[0..3] AS pub_titles,
+             count(pub)               AS shared_count
+        RETURN
+            a.source_key                              AS a_key,
+            coalesce(a.full_name, a.source_key)       AS a_name,
+            coalesce(a.publications_total, 0)         AS a_pubs,
+            b.source_key                              AS b_key,
+            coalesce(b.full_name, b.source_key)       AS b_name,
+            coalesce(b.publications_total, 0)         AS b_pubs,
+            shared_count,
+            pub_titles
+        ORDER BY shared_count DESC
+        LIMIT $limit
+        """)
+
+        with self._driver.session() as session:
+            records = list(session.run(query, {"limit": limit}))
+
+        node_by_key: dict[str, dict[str, Any]] = {}
+        edges: list[dict[str, Any]] = []
+
+        for r in records:
+            for key, name, pubs in (
+                (r["a_key"], r["a_name"], r["a_pubs"]),
+                (r["b_key"], r["b_name"], r["b_pubs"]),
+            ):
+                if key not in node_by_key:
+                    node_by_key[key] = {
+                        "id":    len(node_by_key),
+                        "label": name,
+                        "value": max(1, int(pubs or 1)),
+                        "title": f"{name}<br/>Публикаций: {pubs or '—'}",
+                    }
+
+            a_id   = node_by_key[r["a_key"]]["id"]
+            b_id   = node_by_key[r["b_key"]]["id"]
+            shared = int(r["shared_count"])
+            tooltip_lines = "<br/>".join(
+                (t[:60] + "…") if len(t) > 60 else t
+                for t in (r["pub_titles"] or [])
+            )
+            edges.append({
+                "from":  a_id,
+                "to":    b_id,
+                "value": shared,
+                "title": f"Совместных статей: {shared}<br/>{tooltip_lines}",
+            })
+
+        return {"nodes": list(node_by_key.values()), "edges": edges}
+
+    def import_faculty(
+        self, *, persons: list[dict[str, Any]], publications: list[dict[str, Any]]
+    ) -> dict[str, int]:
+        """Bulk-import FacultyPerson nodes and Publication/AUTHORED relationships into Neo4j.
+
+        Three-step process:
+          1. Upsert all FacultyPerson nodes.
+          2. Upsert all Publication nodes and clear stale AUTHORED edges.
+          3. Re-create AUTHORED edges from a flat authorship list.
+        """
+        if persons:
+            with self._driver.session() as session:
+                session.run(
+                    _cypher("""
+                    UNWIND $persons AS p
+                    MERGE (f:FacultyPerson {source_key: p.source_key})
+                    SET f.full_name            = coalesce(p.full_name, f.full_name),
+                        f.primary_unit         = coalesce(p.primary_unit, f.primary_unit),
+                        f.publications_total   = p.publications_total,
+                        f.updated_at           = datetime()
+                    """),
+                    {"persons": persons},
+                ).consume()
+
+        pub_rows = [
+            {
+                "source_publication_id": p["source_publication_id"],
+                "title": p["title"],
+                "year": p["year"],
+            }
+            for p in publications
+        ]
+        if pub_rows:
+            with self._driver.session() as session:
+                session.run(
+                    _cypher("""
+                    UNWIND $pubs AS pub
+                    MERGE (p:Publication {source_publication_id: pub.source_publication_id})
+                    SET p.title      = coalesce(pub.title, p.title),
+                        p.year       = pub.year,
+                        p.updated_at = datetime()
+                    WITH p
+                    OPTIONAL MATCH (:FacultyPerson)-[old:AUTHORED]->(p)
+                    DELETE old
+                    """),
+                    {"pubs": pub_rows},
+                ).consume()
+
+        authorship_rows: list[dict[str, Any]] = [
+            {
+                "pub_id": pub["source_publication_id"],
+                "person_source_key": author["person_source_key"],
+                "display_name": author.get("display_name") or "",
+                "position": int(author.get("position") or 0),
+            }
+            for pub in publications
+            for author in (pub.get("authors") or [])
+            if author.get("person_source_key")
+        ]
+        if authorship_rows:
+            with self._driver.session() as session:
+                session.run(
+                    _cypher("""
+                    UNWIND $rows AS row
+                    MATCH (p:Publication  {source_publication_id: row.pub_id})
+                    MATCH (f:FacultyPerson {source_key: row.person_source_key})
+                    MERGE (f)-[r:AUTHORED]->(p)
+                    SET r.position     = row.position,
+                        r.display_name = row.display_name
+                    """),
+                    {"rows": authorship_rows},
+                ).consume()
+
+        return {
+            "persons_written":      len(persons),
+            "publications_written": len(pub_rows),
+            "authorships_written":  len(authorship_rows),
+        }
 
     def _project_application(self, event: GraphEvent) -> None:
         payload = event.payload
