@@ -1,11 +1,14 @@
 from uuid import uuid4
 
+import pytest
 from apps.projects.models import Project, ProjectStatus
 from apps.users.models import UserProfile, UserRole
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
+
+pytestmark = pytest.mark.django_db
 
 
 def _make_user(*, role: str = UserRole.STUDENT, is_staff: bool = False):
@@ -160,6 +163,24 @@ def test_user_profile_interests_are_normalized_to_lowercase_unique_values():
     assert response.status_code == 200
     assert response.json()["interests"] == ["python", "machine learning"]
     assert user.profile.interests == ["python", "machine learning"]
+
+
+def test_non_staff_cannot_change_username_via_me_endpoint():
+    user = _make_user(role=UserRole.STUDENT)
+    original_username = user.username
+    client = Client()
+    client.force_login(user)
+
+    response = client.patch(
+        reverse("user-profile-me"),
+        data={"username": "hacked_username"},
+        content_type="application/json",
+    )
+
+    user.refresh_from_db()
+    assert response.status_code == 400
+    assert "username" in response.json()
+    assert user.username == original_username
 
 
 def test_user_can_manage_favorite_projects():

@@ -43,4 +43,13 @@ class ApplicationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"status": ["Direct status updates are disabled. Use transition action endpoints."]}
             )
+        # Prevent duplicate application: check uniqueness before hitting the DB constraint
+        if instance is None:
+            request = self.context.get("request")
+            project = attrs.get("project")
+            if request and request.user.is_authenticated and project is not None:
+                if Application.objects.filter(applicant=request.user, project=project).exists():
+                    raise serializers.ValidationError(
+                        {"project": ["You have already submitted an application for this project."]}
+                    )
         return attrs

@@ -46,11 +46,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get("request")
-        if "role" in getattr(self, "initial_data", {}) and (
+        initial_data = getattr(self, "initial_data", {}) or {}
+        if "role" in initial_data and (
             request is None or not getattr(request.user, "is_staff", False)
         ):
             raise serializers.ValidationError(
                 {"role": ["You cannot change role via this endpoint."]}
+            )
+        if "username" in initial_data:
+            raise serializers.ValidationError(
+                {"username": ["Username cannot be changed via this endpoint."]}
             )
         return super().validate(attrs)
 

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
 from apps.applications.admin import ApplicationAdmin
 from apps.applications.models import Application, ApplicationStatus
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
@@ -8,6 +9,8 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.test import RequestFactory
 from django.urls import reverse
+
+pytestmark = pytest.mark.django_db
 
 
 def _application_admin() -> ApplicationAdmin:
