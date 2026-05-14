@@ -9,6 +9,7 @@ Profile tests → test_profile_views.py
 from uuid import uuid4
 
 import pytest
+from apps.projects.initiative_models import InitiativeProposal
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.users.models import UserProfile, UserRole
 from django.conf import settings
@@ -211,15 +212,9 @@ def test_initiative_project_create_post_valid():
     # Should redirect to project detail on success
     assert response.status_code == 302
 
-    project = Project.objects.filter(
-        owner=student,
-        source_type=ProjectSourceType.INITIATIVE,
-    ).last()
-    assert project is not None
-    assert project.title == "My Initiative"
-    assert project.status == ProjectStatus.ON_MODERATION
-    assert "python" in project.tech_tags
-    assert "fastapi" in project.tech_tags
+    proposal = InitiativeProposal.objects.filter(owner=student).last()
+    assert proposal is not None
+    assert proposal.title == "My Initiative"
 
 
 def test_initiative_project_create_post_invalid_no_title():
@@ -258,9 +253,9 @@ def test_initiative_project_with_supervisor():
         },
     )
 
-    project = Project.objects.filter(owner=student, source_type=ProjectSourceType.INITIATIVE).last()
-    assert project is not None
-    assert project.supervisor_name == "Иванов Иван Иванович"
+    proposal = InitiativeProposal.objects.filter(owner=student).last()
+    assert proposal is not None
+    assert proposal.supervisor_name == "Иванов Иван Иванович"
 
 
 def test_initiative_project_supervisor_without_consent_rejected():

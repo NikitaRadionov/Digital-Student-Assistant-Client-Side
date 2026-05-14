@@ -674,6 +674,26 @@
     </div>
   {% endif %}
 
+  {% if owned_initiative_projects %}
+  <div class="mt-6 pt-5 border-t border-gray-100">
+    <h3 class="text-sm font-semibold text-gray-500 mb-3">Мои инициативные проекты</h3>
+    <div class="space-y-2">
+      {% for proj in owned_initiative_projects %}
+      <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+        <span class="text-sm font-medium text-gray-800 truncate">{{ proj.title }}</span>
+        <span class="flex-shrink-0 text-xs px-2 py-0.5 rounded-full
+          {% if proj.status == 'published' %}bg-green-50 text-green-700
+          {% elif proj.status == 'on_moderation' %}bg-amber-50 text-amber-700
+          {% elif proj.status == 'rejected' %}bg-red-50 text-red-700
+          {% else %}bg-gray-50 text-gray-500{% endif %}">
+          {{ proj.get_status_display }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
 </div><!-- /tab-panel-applications -->
 {% endif %}
 

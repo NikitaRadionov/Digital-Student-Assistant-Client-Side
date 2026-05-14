@@ -71,6 +71,25 @@
         </div>
       </div>
       {% endif %}
+
+      {% if role == 'student' and student_stats %}
+      <div class="mt-4 pt-5 border-t border-gray-100">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;text-align:center;">
+          <div>
+            <p class="text-lg font-bold text-gray-900">{{ student_stats.applications_count }}</p>
+            <p class="text-xs text-gray-400">Заявок подано</p>
+          </div>
+          <div>
+            <p class="text-lg font-bold text-gray-900">{{ student_stats.bookmarks_count }}</p>
+            <p class="text-xs text-gray-400">Закладок</p>
+          </div>
+          <div>
+            <p class="text-lg font-bold text-gray-900">{{ student_stats.initiative_projects_count }}</p>
+            <p class="text-xs text-gray-400">Инициативных проекта</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
 

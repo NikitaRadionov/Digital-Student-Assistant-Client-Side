@@ -1,5 +1,7 @@
+from apps.applications.models import Application
 from apps.frontend.forms import ProfileEditForm
 from apps.frontend.utils import LOGIN_URL
+from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.users.models import UserRole
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -41,11 +43,32 @@ def profile_view(request):
             "interests_raw": interests_initial,
         })
 
+    # Stats for student profile
+    student_stats: dict = {}
+    if role == UserRole.STUDENT and profile:
+        student_stats = {
+            "applications_count":        Application.objects.filter(applicant=user).count(),
+            "bookmarks_count":           len(profile.favorite_project_ids or []),
+            "initiative_projects_count": Project.objects.filter(
+                owner=user,
+                source_type=ProjectSourceType.INITIATIVE,
+            ).count(),
+        }
+
+    # Moderation queue count for CPPRP
+    moderation_queue_count = 0
+    if role == UserRole.CPPRP:
+        moderation_queue_count = Project.objects.filter(
+            status=ProjectStatus.ON_MODERATION
+        ).count()
+
     return render(request, "frontend/profile.html", {
-        "profile_user":      user,
-        "profile":           profile,
-        "role":              role,
-        "form":              form,
-        "interests_initial": interests_initial,
-        "profile_errors":    {k: v[0] for k, v in form.errors.items()},
+        "profile_user":           user,
+        "profile":                profile,
+        "role":                   role,
+        "form":                   form,
+        "interests_initial":      interests_initial,
+        "profile_errors":         {k: v[0] for k, v in form.errors.items()},
+        "student_stats":          student_stats,
+        "moderation_queue_count": moderation_queue_count,
     })

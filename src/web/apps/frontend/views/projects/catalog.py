@@ -196,17 +196,25 @@ def _student_catalog_context(request) -> dict:
                     tag_counts[_tag] += 1
             suggested_interests = [t for t, _ in tag_counts.most_common(6)]
 
+    owned_initiative_projects = list(
+        Project.objects.filter(
+            owner=request.user,
+            source_type=ProjectSourceType.INITIATIVE,
+        ).order_by("-created_at")
+    )
+
     return {
-        "show_recs_tab":         True,
-        "rec_projects":          rec_projects,
-        "rec_reasons":           rec_reasons,
-        "rec_mode":              rec_mode,
-        "has_interests":         has_interests,
-        "rec_user_applications": rec_user_applications,
-        "show_applications_tab": True,
-        "app_page_obj":          app_page_obj,
-        "app_counts":            app_counts,
-        "suggested_interests":   suggested_interests,
+        "show_recs_tab":              True,
+        "rec_projects":               rec_projects,
+        "rec_reasons":                rec_reasons,
+        "rec_mode":                   rec_mode,
+        "has_interests":              has_interests,
+        "rec_user_applications":      rec_user_applications,
+        "show_applications_tab":      True,
+        "app_page_obj":               app_page_obj,
+        "app_counts":                 app_counts,
+        "suggested_interests":        suggested_interests,
+        "owned_initiative_projects":  owned_initiative_projects,
     }
 
 
