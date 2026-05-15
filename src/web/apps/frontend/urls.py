@@ -14,6 +14,7 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
 
     path("projects/", views.project_list, name="project_list"),
+    path("customer/", views.my_projects, name="my_projects"),
     path("projects/create/", views.project_create, name="project_create"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),
     path("projects/<int:pk>/edit/", views.project_edit, name="project_edit"),

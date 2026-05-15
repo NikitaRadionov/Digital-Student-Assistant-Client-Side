@@ -7,6 +7,7 @@ from typing import cast
 
 from apps.applications.models import Application, ApplicationStatus
 from apps.faculty.models import FacultyAuthorship, FacultyPerson, FacultyPublication
+from apps.frontend.decorators import customer_required
 from apps.frontend.utils import LOGIN_URL
 from apps.projects.models import Project, ProjectSourceType, ProjectStatus
 from apps.projects.normalization import normalize_technology_tag, normalize_technology_tags
@@ -16,7 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from . import PAGE_SIZE
 
@@ -51,7 +52,7 @@ def project_list(request):
     except Exception:
         _role = ""
     if _role == UserRole.CUSTOMER:
-        return _customer_project_list(request)
+        return redirect("frontend:my_projects")
     _is_student = _role == UserRole.STUDENT
 
     q                  = request.GET.get("q", "").strip()
@@ -289,7 +290,9 @@ def _get_recommendations(request):
     )
     return projects, {}, None
 
-def _customer_project_list(request):
+@login_required(login_url=LOGIN_URL)
+@customer_required
+def my_projects(request):
     page_number   = request.GET.get("page", 1)
     status_filter = request.GET.get("status", "").strip()
 

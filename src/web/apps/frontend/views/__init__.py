@@ -41,7 +41,7 @@ from .errors import error_403, error_404, error_500
 from .legal import personal_data_consent_view, privacy_policy_view
 from .profile import profile_view
 from .projects.bookmarks import toggle_bookmark
-from .projects.catalog import project_list
+from .projects.catalog import my_projects, project_list
 from .projects.customer import (
     project_create,
     project_delete,
@@ -81,6 +81,7 @@ __all__ = [
     "error_404",
     "error_500",
 
+    "my_projects",
     "project_list",
     "project_detail",
     "project_create",
