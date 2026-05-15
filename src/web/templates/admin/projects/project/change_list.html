@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools %}
+  <ul class="object-tools">
+    <li>
+      <a href="{% url 'admin:projects_project_export_all' %}" class="addlink">
+        Export all as CSV
+      </a>
+    </li>
+    <li>
+      <a href="{% url 'admin:projects_project_export_all_xlsx' %}" class="addlink">
+        Export all as EPP XLSX
+      </a>
+    </li>
+  </ul>
+  {{ block.super }}
+{% endblock %}

@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_create %}Новый проект{% else %}Редактировать: {{ project.title }}{% endif %} — DSA{% endblock %}
+
+{% block content %}
+
+<div class="mb-6">
+  {% if is_create %}
+    <a href="{% url 'frontend:project_list' %}"
+       class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Все проекты
+    </a>
+  {% else %}
+    <a href="{% url 'frontend:project_detail' project.pk %}"
+       class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+      {{ project.title }}
+    </a>
+  {% endif %}
+</div>
+
+<div style="max-width:640px;margin:0 auto;">
+  <div class="bg-white border border-gray-200 rounded-xl p-6 sm:p-8">
+
+    <div class="mb-6">
+      <h1 class="text-xl font-semibold text-gray-900">
+        {% if is_create %}Новый проект{% else %}Редактировать проект{% endif %}
+      </h1>
+      <p class="text-sm text-gray-500 mt-1">
+        {% if is_create %}Заполните основную информацию. После создания проект будет сохранён как черновик.
+        {% else %}Вы редактируете черновик. Изменения сохранятся немедленно.{% endif %}
+      </p>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="mb-5">
+        <label for="id_title" class="block text-sm font-medium text-gray-700 mb-1">
+          Название <span class="text-red-400">*</span>
+        </label>
+        <input
+          id="id_title"
+          type="text"
+          name="title"
+          value="{{ form.title.value|default:'' }}"
+          maxlength="255"
+          placeholder="Например: Разработка мобильного приложения"
+          autofocus
+          class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.title.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+        >
+        {% if form.title.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.title.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="mb-5">
+        <label for="id_description" class="block text-sm font-medium text-gray-700 mb-1">
+          Описание
+        </label>
+        <textarea
+          id="id_description"
+          name="description"
+          rows="5"
+          placeholder="Кратко опишите суть проекта, задачи и ожидаемый результат..."
+          class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y transition-colors {% if form.description.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          style="font-family:inherit;line-height:1.6;"
+        >{{ form.description.value|default:'' }}</textarea>
+        {% if form.description.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.description.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Технологии
+        </label>
+
+        <div id="tags-chips"
+             class="flex flex-wrap gap-1 mb-2"
+             style="min-height:0;"></div>
+
+        <input
+          id="tags-text-input"
+          type="text"
+          placeholder="Введите тег и нажмите Enter или ,"
+          autocomplete="off"
+          class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+        >
+
+        <input type="hidden" name="tech_tags_raw" id="tags-hidden" value="{{ tags_initial }}">
+
+        <p class="mt-1 text-xs text-gray-400">
+          Enter или , — добавить тег &nbsp;·&nbsp; × — удалить
+        </p>
+        {% if form.tech_tags_raw.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.tech_tags_raw.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="mb-5">
+        <label for="id_team_size" class="block text-sm font-medium text-gray-700 mb-1">
+          Размер команды <span class="text-red-400">*</span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input
+            id="id_team_size"
+            type="number"
+            name="team_size"
+            value="{{ form.team_size.value|default:'1' }}"
+            min="1"
+            max="100"
+            style="width:100px;"
+            class="px-3 py-2 text-sm border rounded-lg bg-white text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.team_size.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          <span class="text-sm text-gray-500">участников</span>
+        </div>
+        {% if form.team_size.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.team_size.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <hr class="my-6 border-gray-100">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Дополнительно</p>
+
+      <div class="mb-5 flex flex-col sm:flex-row gap-4">
+        <div class="flex-1">
+          <label for="id_work_format" class="block text-sm font-medium text-gray-700 mb-1">
+            Формат работы
+          </label>
+          <input
+            id="id_work_format"
+            type="text"
+            name="work_format"
+            value="{{ form.work_format.value|default:'' }}"
+            maxlength="255"
+            placeholder="Очный, дистанционный, гибридный..."
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.work_format.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.work_format.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.work_format.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <div style="width:140px;">
+          <label for="id_hours_per_week" class="block text-sm font-medium text-gray-700 mb-1">
+            Часов в неделю
+          </label>
+          <input
+            id="id_hours_per_week"
+            type="number"
+            name="hours_per_week"
+            value="{{ form.hours_per_week.value|default:'' }}"
+            min="0"
+            max="168"
+            step="0.5"
+            placeholder="—"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white text-center placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.hours_per_week.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.hours_per_week.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.hours_per_week.errors.0 }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mb-5 flex flex-col sm:flex-row gap-4">
+        <div style="width:160px;">
+          <label for="id_is_paid" class="block text-sm font-medium text-gray-700 mb-1">
+            Оплачивается
+          </label>
+          <select
+            id="id_is_paid"
+            name="is_paid"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.is_paid.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+            {% with cur=form.is_paid.value|default:'' %}
+            <option value=""  {% if cur == ''    %}selected{% endif %}>Не указано</option>
+            <option value="yes" {% if cur == 'yes' %}selected{% endif %}>Да</option>
+            <option value="no"  {% if cur == 'no'  %}selected{% endif %}>Нет</option>
+            {% endwith %}
+          </select>
+          {% if form.is_paid.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.is_paid.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <div class="flex-1">
+          <label for="id_application_deadline" class="block text-sm font-medium text-gray-700 mb-1">
+            Дедлайн подачи заявок
+          </label>
+          <input
+            id="id_application_deadline"
+            type="date"
+            name="application_deadline"
+            value="{{ form.application_deadline.value|date:'Y-m-d'|default:'' }}"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.application_deadline.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.application_deadline.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.application_deadline.errors.0 }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mb-8">
+        <label for="id_selection_criteria" class="block text-sm font-medium text-gray-700 mb-1">
+          Критерии отбора
+        </label>
+        <textarea
+          id="id_selection_criteria"
+          name="selection_criteria"
+          rows="3"
+          placeholder="Что важно для вас при выборе студентов: навыки, опыт, мотивация..."
+          class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y transition-colors {% if form.selection_criteria.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          style="font-family:inherit;line-height:1.6;"
+        >{{ form.selection_criteria.value|default:'' }}</textarea>
+        {% if form.selection_criteria.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.selection_criteria.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <hr class="my-6 border-gray-100">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Руководитель проекта</p>
+
+      <div class="mb-5">
+        <label for="id_supervisor_name" class="block text-sm font-medium text-gray-700 mb-1">
+          ФИО руководителя
+        </label>
+        <input
+          id="id_supervisor_name"
+          type="text"
+          name="supervisor_name"
+          value="{{ form.supervisor_name.value|default:'' }}"
+          maxlength="255"
+          placeholder="Иванов Иван Иванович"
+          class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.supervisor_name.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+        >
+        {% if form.supervisor_name.errors %}
+          <p class="mt-1 text-xs text-red-500">{{ form.supervisor_name.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="mb-5 flex flex-col sm:flex-row gap-4">
+        <div class="flex-1">
+          <label for="id_supervisor_email" class="block text-sm font-medium text-gray-700 mb-1">
+            Email руководителя
+          </label>
+          <input
+            id="id_supervisor_email"
+            type="email"
+            name="supervisor_email"
+            value="{{ form.supervisor_email.value|default:'' }}"
+            maxlength="255"
+            placeholder="ivanov@hse.ru"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.supervisor_email.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.supervisor_email.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.supervisor_email.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <div class="flex-1">
+          <label for="id_supervisor_department" class="block text-sm font-medium text-gray-700 mb-1">
+            Подразделение
+          </label>
+          <input
+            id="id_supervisor_department"
+            type="text"
+            name="supervisor_department"
+            value="{{ form.supervisor_department.value|default:'' }}"
+            maxlength="255"
+            placeholder="Факультет компьютерных наук"
+            class="w-full px-3 py-2 text-sm border rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors {% if form.supervisor_department.errors %}border-red-400{% else %}border-gray-200{% endif %}"
+          >
+          {% if form.supervisor_department.errors %}
+            <p class="mt-1 text-xs text-red-500">{{ form.supervisor_department.errors.0 }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 pt-4 border-t border-gray-100">
+        <button
+          type="submit"
+          id="submit-btn"
+          class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+          <svg id="submit-spinner" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" style="display:none;">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span id="submit-text">
+            {% if is_create %}Создать проект{% else %}Сохранить изменения{% endif %}
+          </span>
+        </button>
+
+        {% if is_create %}
+          <a href="{% url 'frontend:project_list' %}"
+             class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+            Отмена
+          </a>
+        {% else %}
+          <a href="{% url 'frontend:project_detail' project.pk %}"
+             class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+            Отмена
+          </a>
+        {% endif %}
+      </div>
+
+    </form>
+  </div>
+
+  {% if not is_create %}
+  <p class="text-xs text-gray-400 text-center mt-4">
+    Статус проекта: <strong>{{ project.get_status_display }}</strong>.
+    {% if project.status == "draft" %}После редактирования отправьте проект на модерацию.{% endif %}
+  </p>
+  {% endif %}
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var chipsEl  = document.getElementById('tags-chips');
+  var textEl   = document.getElementById('tags-text-input');
+  var hiddenEl = document.getElementById('tags-hidden');
+
+  var tags = hiddenEl.value
+    ? hiddenEl.value.split(',').map(function(t){ return t.trim(); }).filter(Boolean)
+    : [];
+
+  function sync() {
+    hiddenEl.value = tags.join(', ');
+  }
+
+  function render() {
+    chipsEl.innerHTML = '';
+    tags.forEach(function(tag, i) {
+      var chip = document.createElement('span');
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;';
+      chip.innerHTML =
+        tag +
+        '<button type="button" data-i="' + i + '" ' +
+        'style="background:none;border:none;cursor:pointer;color:#60a5fa;font-size:14px;line-height:1;padding:0 0 0 2px;" ' +
+        'title="Удалить">×</button>';
+      chip.querySelector('button').addEventListener('click', function() {
+        tags.splice(parseInt(this.dataset.i), 1);
+        render(); sync();
+      });
+      chipsEl.appendChild(chip);
+    });
+  }
+
+  function addTag(raw) {
+    var tag = raw.trim().toLowerCase().replace(/,/g, '');
+    if (tag && tags.indexOf(tag) === -1) {
+      tags.push(tag);
+      render(); sync();
+    }
+    textEl.value = '';
+  }
+
+  textEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(textEl.value);
+    }
+    if (e.key === 'Backspace' && textEl.value === '' && tags.length) {
+      tags.pop();
+      render(); sync();
+    }
+  });
+
+  textEl.addEventListener('paste', function(e) {
+    e.preventDefault();
+    var pasted = (e.clipboardData || window.clipboardData).getData('text');
+    pasted.split(',').forEach(function(part) {
+      if (part.trim()) addTag(part);
+    });
+  });
+
+  textEl.addEventListener('blur', function() {
+    if (textEl.value.trim()) addTag(textEl.value);
+  });
+
+  document.querySelector('form').addEventListener('submit', function() {
+    if (textEl.value.trim()) addTag(textEl.value);
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-spinner').style.display = 'inline-block';
+    document.getElementById('submit-text').style.display    = 'none';
+  });
+
+  render();
+})();
+</script>
+{% endblock %}
