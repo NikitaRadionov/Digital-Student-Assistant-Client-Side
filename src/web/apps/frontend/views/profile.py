@@ -8,7 +8,6 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import redirect, render
 
-
 @login_required(login_url=LOGIN_URL)
 def profile_view(request):
     user    = request.user
@@ -43,7 +42,6 @@ def profile_view(request):
             "interests_raw": interests_initial,
         })
 
-    # Stats for student profile
     student_stats: dict = {}
     if role == UserRole.STUDENT and profile:
         student_stats = {
@@ -55,7 +53,6 @@ def profile_view(request):
             ).count(),
         }
 
-    # Moderation queue count for CPPRP
     moderation_queue_count = 0
     if role == UserRole.CPPRP:
         moderation_queue_count = Project.objects.filter(

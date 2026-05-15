@@ -10,7 +10,6 @@
 <div style="min-height:70vh;display:flex;align-items:center;justify-content:center;">
 <div style="width:100%;max-width:420px;">
 
-  <!-- Logo mark -->
   <div class="flex flex-col items-center mb-8">
     <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mb-3"
          style="box-shadow:0 4px 14px rgba(37,99,235,0.3);">
@@ -23,11 +22,9 @@
     <p class="text-sm text-gray-500 mt-1">Платформа студенческих проектов</p>
   </div>
 
-  <!-- Card -->
   <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden"
        style="box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
-    <!-- Tabs -->
     <div class="flex border-b border-gray-200">
       <button id="tab-login-btn" type="button" onclick="switchTab('login')"
               class="flex-1 py-3 text-sm font-medium transition-colors"
@@ -43,7 +40,6 @@
       </button>
     </div>
 
-    <!-- ══════════════════ LOGIN FORM ══════════════════ -->
     <div id="panel-login" style="{% if active_tab != 'login' %}display:none;{% endif %}padding:1.75rem;">
 
       {% if login_form.non_field_errors %}
@@ -81,7 +77,6 @@
         <input type="hidden" name="tab" value="login">
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
-        <!-- Email -->
         <div class="mb-4">
           <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input id="login-email" type="email" name="email"
@@ -94,7 +89,6 @@
           {% endif %}
         </div>
 
-        <!-- Password -->
         <div class="mb-6">
           <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
           <div style="position:relative;">
@@ -120,7 +114,6 @@
       </form>
     </div>
 
-    <!-- ══════════════════ REGISTER FORM ══════════════════ -->
     <div id="panel-register" style="{% if active_tab != 'register' %}display:none;{% endif %}padding:1.75rem;">
 
       {% if register_form.non_field_errors %}
@@ -137,7 +130,6 @@
         <input type="hidden" name="tab" value="register">
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
-        <!-- Name -->
         <div class="mb-4">
           <label for="reg-name" class="block text-sm font-medium text-gray-700 mb-1">
             Имя <span class="text-gray-400 font-normal">(необязательно)</span>
@@ -152,7 +144,6 @@
           {% endif %}
         </div>
 
-        <!-- Email -->
         <div class="mb-4">
           <label for="reg-email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-400">*</span></label>
           <input id="reg-email" type="email" name="email"
@@ -165,7 +156,6 @@
           {% endif %}
         </div>
 
-        <!-- Password -->
         <div class="mb-4">
           <label for="reg-password" class="block text-sm font-medium text-gray-700 mb-1">Пароль <span class="text-red-400">*</span></label>
           <input id="reg-password" type="password" name="password"
@@ -179,7 +169,6 @@
           {% endif %}
         </div>
 
-        <!-- Confirm password -->
         <div class="mb-4">
           <label for="reg-password2" class="block text-sm font-medium text-gray-700 mb-1">Повторите пароль <span class="text-red-400">*</span></label>
           <input id="reg-password2" type="password" name="password2"
@@ -191,7 +180,6 @@
           {% endif %}
         </div>
 
-        <!-- Role -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-2">Я регистрируюсь как <span class="text-red-400">*</span></label>
           <div class="grid grid-cols-2 gap-2">
@@ -267,7 +255,7 @@
 
 {% block extra_js %}
 <script>
-  /* ── Tab switching ─────────────────────────────────────────────── */
+
   function switchTab(tab) {
     var isLogin = tab === 'login';
     document.getElementById('panel-login').style.display    = isLogin ? '' : 'none';
@@ -281,7 +269,6 @@
     regBtn.style.color          = isLogin ? '#6b7280' : '#2563eb';
   }
 
-  /* ── Role radio card UI ────────────────────────────────────────── */
   function updateRoleUI() {
     var selected = document.querySelector('input[name="role"]:checked');
     if (!selected) return;
@@ -303,7 +290,6 @@
     });
   }
 
-  /* ── Spinner on submit ─────────────────────────────────────────── */
   document.getElementById('login-form').addEventListener('submit', function() {
     document.getElementById('login-submit').disabled        = true;
     document.getElementById('login-spinner').style.display  = 'inline-block';

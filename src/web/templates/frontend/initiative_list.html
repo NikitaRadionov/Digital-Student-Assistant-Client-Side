@@ -33,7 +33,6 @@
           <p class="text-xs text-gray-400 mt-0.5">Обновлено {{ proposal.updated_at|date:"d.m.Y" }}</p>
         </div>
 
-        <!-- Status badge -->
         {% if proposal.status == InitiativeProposalStatus.DRAFT %}
         <span class="flex-shrink-0 px-2.5 py-1 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full">Черновик</span>
         {% elif proposal.status == InitiativeProposalStatus.ON_MODERATION %}
@@ -60,7 +59,6 @@
       </div>
       {% endif %}
 
-      <!-- Moderation comment (revision_requested) -->
       {% if proposal.status == InitiativeProposalStatus.REVISION_REQUESTED and proposal.moderation_comment %}
       <div class="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg mb-4">
         <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -73,7 +71,6 @@
       </div>
       {% endif %}
 
-      <!-- Published project link -->
       {% if proposal.status == InitiativeProposalStatus.PUBLISHED and proposal.published_project %}
       <div class="flex items-center gap-2 mb-4">
         <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -86,7 +83,6 @@
       </div>
       {% endif %}
 
-      <!-- Actions -->
       {% if proposal.status in editable_statuses %}
       <div class="flex items-center gap-2 flex-wrap">
         <a href="{% url 'frontend:initiative_proposal_edit' proposal.pk %}"
@@ -117,7 +113,6 @@
 
 </div>
 
-<!-- Pagination -->
 {% if page_obj.has_other_pages %}
 <div class="flex items-center justify-center gap-1 mt-8">
   {% if page_obj.has_previous %}

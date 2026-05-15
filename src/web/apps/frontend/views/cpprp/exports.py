@@ -7,7 +7,6 @@ from apps.projects.models import Project
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_export_projects(request):
@@ -29,7 +28,6 @@ def cpprp_export_projects(request):
             p.created_at.strftime("%Y-%m-%d %H:%M") if p.created_at else "",
         ])
     return response
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required
@@ -53,11 +51,10 @@ def cpprp_export_applications(request):
         ])
     return response
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 def cpprp_export_projects_xlsx(request):
-    """Download projects as XLSX (EPP-compatible sheet + optional extended sheet)."""
+
     from apps.projects.export_epp_xlsx import LegacyVariant, build_projects_xlsx_bytes
 
     variant_raw = (request.GET.get("variant") or "both").lower()

@@ -12,7 +12,6 @@
 
 {% block content %}
 
-<!-- Breadcrumb -->
 <div class="mb-6">
   <a href="{% url 'frontend:initiative_proposal_list' %}"
      class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors">
@@ -30,7 +29,6 @@
     <p class="mt-1 text-sm text-gray-500">{{ proposal.title }}</p>
   </div>
 
-  <!-- Revision comment banner -->
   {% if proposal.moderation_comment %}
   <div class="flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg mb-6">
     <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -46,7 +44,6 @@
   <form method="post" novalidate>
     {% csrf_token %}
 
-    <!-- Title -->
     <div class="mb-5">
       <label for="id_title" class="block text-sm font-medium text-gray-700 mb-1">
         Название <span class="text-red-500">*</span>
@@ -58,7 +55,6 @@
       {% for error in form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
     </div>
 
-    <!-- Description -->
     <div class="mb-5">
       <label for="id_description" class="block text-sm font-medium text-gray-700 mb-1">
         Описание <span class="text-red-500">*</span>
@@ -69,7 +65,6 @@
       {% for error in form.description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
     </div>
 
-    <!-- Tech tags -->
     <div class="mb-5">
       <label for="id_tech_tags_raw" class="block text-sm font-medium text-gray-700 mb-1">Технологии</label>
       <p class="text-xs text-gray-400 mb-2">Введите через запятую: Python, Django, React…</p>
@@ -81,7 +76,6 @@
       <div id="tag-preview" class="flex flex-wrap gap-1 mt-2"></div>
     </div>
 
-    <!-- Team size + Supervisor -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
       <div>
         <label for="id_team_size" class="block text-sm font-medium text-gray-700 mb-1">
@@ -105,7 +99,6 @@
       </div>
     </div>
 
-    <!-- Consent -->
     <div class="mb-6">
       <label class="flex items-start gap-3">
         <input type="checkbox"

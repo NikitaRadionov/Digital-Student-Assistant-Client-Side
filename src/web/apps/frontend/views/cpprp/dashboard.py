@@ -20,10 +20,8 @@ from django.urls import reverse
 
 _APPS_PAGE_SIZE = 20
 
-
 def _cpprp_tab_redirect(tab: str) -> HttpResponse:
     return redirect(reverse("frontend:cpprp_dashboard") + f"?tab={tab}")
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required

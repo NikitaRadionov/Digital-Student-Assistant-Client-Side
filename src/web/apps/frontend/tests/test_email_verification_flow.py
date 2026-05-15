@@ -10,7 +10,6 @@ from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
 
-
 def _make_unverified_user(*, email: str = "pending@example.com"):
     suffix = uuid4().hex[:8]
     user = get_user_model().objects.create_user(
@@ -21,7 +20,6 @@ def _make_unverified_user(*, email: str = "pending@example.com"):
     )
     UserProfile.objects.create(user=user, role=UserRole.STUDENT)
     return user
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_registration_sends_code_and_keeps_user_logged_out():
@@ -52,7 +50,6 @@ def test_registration_sends_code_and_keeps_user_logged_out():
     assert extract_code_from_message(mail.outbox[-1].body) is not None
     assert "_auth_user_id" not in client.session
 
-
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_correct_verification_code_activates_and_logs_in_user():
     user = _make_unverified_user(email=f"verify-me-{uuid4().hex[:8]}@example.com")
@@ -73,7 +70,6 @@ def test_correct_verification_code_activates_and_logs_in_user():
     assert user.is_active is True
     assert user.profile.email_verified_at is not None
     assert str(user.pk) == client.session["_auth_user_id"]
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_login_blocks_unverified_user_after_valid_password():

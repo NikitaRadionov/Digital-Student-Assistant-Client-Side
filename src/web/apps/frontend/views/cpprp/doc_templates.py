@@ -10,7 +10,6 @@ from django.views.decorators.http import require_POST
 
 from .dashboard import _cpprp_tab_redirect
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -35,7 +34,6 @@ def cpprp_template_create(request):
         flash_form_errors(request, form)
     return _cpprp_tab_redirect("templates")
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -46,7 +44,6 @@ def cpprp_template_toggle(request, pk):
     state = "активирован" if tpl.is_active else "деактивирован"
     messages.success(request, f"Шаблон «{tpl.title}» {state}.")
     return _cpprp_tab_redirect("templates")
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required

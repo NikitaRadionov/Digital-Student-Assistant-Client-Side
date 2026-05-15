@@ -15,7 +15,6 @@ from django.views.decorators.http import require_POST
 
 from .dashboard import _cpprp_tab_redirect
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -54,7 +53,6 @@ def cpprp_external_allowlist_bulk_add(request):
     )
     return _cpprp_tab_redirect("external-access")
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -87,7 +85,6 @@ def cpprp_external_request_approve(request, pk):
     messages.success(request, f"{access_request.email} approved and added to allowlist.")
     return _cpprp_tab_redirect("external-access")
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -102,7 +99,6 @@ def cpprp_external_request_reject(request, pk):
     )
     messages.success(request, f"{access_request.email} rejected.")
     return _cpprp_tab_redirect("external-access")
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required

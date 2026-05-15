@@ -19,7 +19,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 _PAGE_SIZE = 9
 _EDITABLE_STATUSES = {InitiativeProposalStatus.DRAFT, InitiativeProposalStatus.REVISION_REQUESTED}
 
-
 @login_required(login_url=LOGIN_URL)
 @student_required
 def initiative_project_create(request):
@@ -50,7 +49,6 @@ def initiative_project_create(request):
         "tags_initial": tags_initial,
     })
 
-
 @login_required(login_url=LOGIN_URL)
 @student_required
 def initiative_proposal_list(request):
@@ -68,7 +66,6 @@ def initiative_proposal_list(request):
         "InitiativeProposalStatus": InitiativeProposalStatus,
         "editable_statuses":        _EDITABLE_STATUSES,
     })
-
 
 @login_required(login_url=LOGIN_URL)
 @student_required
@@ -119,7 +116,6 @@ def initiative_proposal_edit(request, pk):
         "tags_initial": tags_initial,
     })
 
-
 @require_POST
 @login_required(login_url=LOGIN_URL)
 @student_required
@@ -133,7 +129,6 @@ def initiative_proposal_submit(request, pk):
     except DRFValidationError:
         messages.error(request, "Нельзя отправить предложение в текущем статусе.")
     return redirect("frontend:initiative_proposal_list")
-
 
 @require_POST
 @login_required(login_url=LOGIN_URL)
@@ -149,8 +144,6 @@ def initiative_proposal_delete(request, pk):
     proposal.delete()
     messages.success(request, f"Предложение «{title}» удалено.")
     return redirect("frontend:initiative_proposal_list")
-
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required
@@ -174,7 +167,6 @@ def initiative_moderation_detail(request, pk):
         "proposal": proposal,
     })
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 def initiative_moderation_list(request):
@@ -192,7 +184,6 @@ def initiative_moderation_list(request):
         "page_obj":    page_obj,
         "queue_count": queue_count,
     })
-
 
 @require_POST
 @login_required(login_url=LOGIN_URL)

@@ -10,7 +10,6 @@ _TAG_ITEM_MAX = 50
 
 TAG_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9 \-\.+#_]*$")
 
-
 def _validate_tags(tags: list[str]) -> list[str]:
     if len(tags) > _TAGS_MAX:
         raise forms.ValidationError(f"Максимум {_TAGS_MAX} тегов.")
@@ -24,9 +23,7 @@ def _validate_tags(tags: list[str]) -> list[str]:
         )
     return tags
 
-
 _IS_PAID_CHOICES = [("", "Не указано"), ("yes", "Да"), ("no", "Нет")]
-
 
 class ProjectFrontendForm(forms.Form):
     title = forms.CharField(
@@ -85,6 +82,24 @@ class ProjectFrontendForm(forms.Form):
         max_length=_DESCRIPTION_MAX,
         error_messages={"max_length": f"Не более {_DESCRIPTION_MAX} символов."},
     )
+    supervisor_name = forms.CharField(
+        required=False,
+        max_length=255,
+        error_messages={"max_length": "Не более 255 символов."},
+    )
+    supervisor_email = forms.EmailField(
+        required=False,
+        max_length=255,
+        error_messages={
+            "invalid": "Введите корректный email.",
+            "max_length": "Не более 255 символов.",
+        },
+    )
+    supervisor_department = forms.CharField(
+        required=False,
+        max_length=255,
+        error_messages={"max_length": "Не более 255 символов."},
+    )
 
     def clean_tech_tags_raw(self):
         raw = self.cleaned_data.get("tech_tags_raw", "")
@@ -99,7 +114,6 @@ class ProjectFrontendForm(forms.Form):
         if val == "no":
             return False
         return None
-
 
 class ModerationProjectFieldsForm(forms.Form):
     study_course = forms.IntegerField(
@@ -121,7 +135,6 @@ class ModerationProjectFieldsForm(forms.Form):
     results_presentation_format = forms.CharField(required=False, widget=forms.Textarea, max_length=2000)
     grading_formula = forms.CharField(required=False, widget=forms.Textarea, max_length=2000)
     student_participation_format = forms.CharField(required=False, max_length=255)
-
 
 class InitiativeProjectForm(forms.Form):
     title = forms.CharField(
@@ -178,9 +191,7 @@ class InitiativeProjectForm(forms.Form):
             return []
         return _validate_tags(normalize_technology_tags(raw.split(",")))
 
-
 _INITIATIVE_MODERATION_COMMENT_MIN_LEN = 50
-
 
 class InitiativeProposalModerationForm(forms.Form):
     DECISION_CHOICES = [
@@ -215,7 +226,6 @@ class InitiativeProposalModerationForm(forms.Form):
                 )
         cleaned_data["comment"] = comment
         return cleaned_data
-
 
 class ModerationDecisionForm(forms.Form):
     DECISION_CHOICES = [

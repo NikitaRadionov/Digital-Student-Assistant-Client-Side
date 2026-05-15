@@ -4,7 +4,6 @@
 
 {% block content %}
 
-<!-- Breadcrumb -->
 <div class="flex items-center gap-2 mb-6 text-sm text-gray-500">
   <a href="{% url 'frontend:project_detail' project.pk %}"
      class="hover:text-gray-900 transition-colors truncate" style="max-width:300px;">
@@ -16,7 +15,6 @@
   <span class="text-gray-700 font-medium flex-shrink-0">Заявки</span>
 </div>
 
-<!-- Page header -->
 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;">
   <div>
     <h1 class="text-2xl font-bold text-gray-900">Заявки на проект</h1>
@@ -39,7 +37,6 @@
   </a>
 </div>
 
-<!-- Filter tabs -->
 <div class="flex items-center gap-0.5 mb-6 bg-white border border-gray-200 rounded-xl p-1"
      style="width:fit-content;">
   <a href="?status="
@@ -64,7 +61,6 @@
   </a>
 </div>
 
-<!-- Application cards -->
 {% if page_obj.object_list %}
 <div style="display:flex;flex-direction:column;gap:12px;">
 
@@ -73,9 +69,8 @@
 
     <div style="display:grid;grid-template-columns:1fr auto;gap:1.5rem;align-items:start;">
 
-      <!-- Left: applicant info + motivation -->
       <div>
-        <!-- Applicant row -->
+
         <div class="flex items-center gap-3 flex-wrap mb-3">
           <div class="flex items-center justify-center text-sm font-bold text-white bg-blue-500 flex-shrink-0"
                style="width:36px;height:36px;border-radius:50%;">
@@ -88,7 +83,6 @@
             <p class="text-xs text-gray-400">{{ app.applicant.email }}</p>
           </div>
 
-          <!-- Status badge -->
           {% if app.status == ApplicationStatus.SUBMITTED %}
             <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200">
               На рассмотрении
@@ -106,7 +100,6 @@
           <span class="text-xs text-gray-400 ml-auto">{{ app.created_at|date:"d M Y, H:i" }}</span>
         </div>
 
-        <!-- Motivation -->
         {% if app.motivation %}
         <div class="bg-gray-50 rounded-lg px-4 py-3 mb-3">
           <p class="text-xs font-medium text-gray-400 mb-1">Мотивация</p>
@@ -116,7 +109,6 @@
         <p class="text-sm text-gray-400 italic mb-3">Мотивация не указана</p>
         {% endif %}
 
-        <!-- Review comment (shown on rejected) -->
         {% if app.review_comment %}
         <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3">
           <p class="text-xs font-medium text-red-500 mb-1">Причина отклонения</p>
@@ -124,7 +116,6 @@
         </div>
         {% endif %}
 
-        <!-- Audit: who reviewed and when -->
         {% if app.reviewed_at %}
         <div class="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
           <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -138,11 +129,9 @@
         {% endif %}
       </div>
 
-      <!-- Right: action buttons (only for SUBMITTED) -->
       {% if app.status == ApplicationStatus.SUBMITTED %}
       <div style="display:flex;flex-direction:column;gap:8px;min-width:150px;">
 
-        <!-- Accept -->
         <form method="post" action="{% url 'frontend:review_application' app.pk %}">
           {% csrf_token %}
           <input type="hidden" name="decision" value="accept">
@@ -152,13 +141,11 @@
           </button>
         </form>
 
-        <!-- Reject toggle -->
         <button type="button" onclick="toggleReject({{ app.pk }})"
                 class="w-full py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
           Отклонить
         </button>
 
-        <!-- Reject form (collapsed by default) -->
         <div id="reject-form-{{ app.pk }}" style="display:none;">
           <form method="post" action="{% url 'frontend:review_application' app.pk %}">
             {% csrf_token %}
@@ -190,7 +177,6 @@
 
 </div>
 
-<!-- Pagination -->
 {% if page_obj.has_other_pages %}
 <div class="flex items-center justify-center gap-1 mt-8">
   {% if page_obj.has_previous %}
@@ -213,7 +199,7 @@
 {% endif %}
 
 {% else %}
-<!-- Empty state -->
+
 <div class="text-center py-16 bg-white border border-gray-200 rounded-2xl">
   <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
     <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">

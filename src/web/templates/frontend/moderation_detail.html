@@ -4,7 +4,6 @@
 
 {% block content %}
 
-<!-- Breadcrumb -->
 <div class="mb-6">
   <a href="{% url 'frontend:moderation_list' %}"
      class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors">
@@ -15,13 +14,10 @@
   </a>
 </div>
 
-<!-- Two-column layout -->
 <div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start;">
 
-  <!-- ── LEFT: Project info ──────────────────────────────────────── -->
   <div>
 
-    <!-- Title + status -->
     <div class="bg-white border border-gray-200 rounded-2xl p-6 mb-5" style="box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <div class="flex items-start justify-between gap-3 mb-3">
         <h1 class="text-xl font-bold text-gray-900 leading-snug">{{ project.title }}</h1>
@@ -30,7 +26,6 @@
         </span>
       </div>
 
-      <!-- Meta row -->
       <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-4">
         <span>
           {% if project.source_type == "initiative" %}Студент{% else %}Заказчик{% endif %}:
@@ -62,7 +57,6 @@
       {% endif %}
     </div>
 
-    <!-- Customer-filled details -->
     {% with has_extra=project.work_format|add:project.selection_criteria %}
     {% if has_extra or project.hours_per_week or project.is_paid is not None or project.application_deadline %}
     <div class="bg-white border border-gray-200 rounded-2xl p-6 mb-5" style="box-shadow:0 2px 8px rgba(0,0,0,0.04);">
@@ -105,7 +99,6 @@
     {% endif %}
     {% endwith %}
 
-    <!-- Supervisor block (if any) -->
     {% if project.supervisor_name %}
     <div class="bg-white border border-gray-200 rounded-2xl p-6" style="box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Руководитель</h2>
@@ -132,10 +125,8 @@
 
   </div>
 
-  <!-- ── RIGHT: ЦППРП fields + decision ─────────────────────────── -->
   <div style="position:sticky;top:24px;">
 
-    <!-- ЦППРП fields form -->
     <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4" style="box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <h2 class="text-sm font-semibold text-gray-900 mb-4">
         Поля ЦППРП
@@ -226,11 +217,9 @@
       </form>
     </div>
 
-    <!-- Decision form -->
     <div class="bg-white border border-gray-200 rounded-2xl p-5" style="box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <h2 class="text-sm font-semibold text-gray-900 mb-4">Решение</h2>
 
-      <!-- Approve -->
       <form method="post" action="{% url 'frontend:moderate_project_decide' project.pk %}">
         {% csrf_token %}
         <input type="hidden" name="decision" value="approve">
@@ -240,7 +229,6 @@
         </button>
       </form>
 
-      <!-- Reject toggle -->
       <button type="button" onclick="toggleReject()"
               id="reject-toggle-btn"
               class="w-full py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
@@ -277,9 +265,9 @@
 
     </div>
 
-  </div><!-- end right -->
+  </div>
 
-</div><!-- end grid -->
+</div>
 
 {% endblock %}
 

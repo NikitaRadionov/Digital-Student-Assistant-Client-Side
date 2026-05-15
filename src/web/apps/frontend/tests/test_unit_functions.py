@@ -1,30 +1,21 @@
 import pytest
 
-# ===========================================================================
-# _tokenize  (apps.recs.services)
-#
-# TOKEN_RE = re.compile(r"[A-Za-zА-Яа-я0-9_+#.-]+")
-# The character class includes: letters, digits, _, +, #, . (literal dot),
-# and - (literal hyphen at end of class).  Spaces and commas are separators.
-# ===========================================================================
-
-
 @pytest.mark.parametrize(
     "value, expected",
     [
         ("", set()),
         ("Python", {"python"}),
         ("Python Django", {"python", "django"}),
-        # + and # are both inside the character class → one token
+
         ("C++", {"c++"}),
         ("C++#ML", {"c++#ml"}),
-        # hyphen is inside the character class → one token
+
         ("hello-world", {"hello-world"}),
-        # whitespace only → no tokens
+
         ("   ", set()),
-        # comma is not in the character class → two tokens
+
         ("Python,Django", {"python", "django"}),
-        # dot is in the character class → one token
+
         ("3.14", {"3.14"}),
         ("react.js", {"react.js"}),
     ],
@@ -34,44 +25,38 @@ def test_tokenize(value, expected):
 
     assert _tokenize(value) == expected
 
-
-# ===========================================================================
-# _normalize_remote_items  (apps.recs.services)
-# ===========================================================================
-
 _DEFAULT_REASON = "semantic match"
-
 
 @pytest.mark.parametrize(
     "items, expected",
     [
-        # Not a list → None
+
         (None, None),
         ("a string", None),
         (42, None),
-        # Empty list → empty list
+
         ([], []),
-        # Full valid item
+
         (
             [{"project_id": 1, "score": 0.9, "reason": "good match"}],
             [{"project_id": 1, "score": 0.9, "reason": "good match"}],
         ),
-        # Missing score and reason → defaults
+
         (
             [{"project_id": 1}],
             [{"project_id": 1, "score": 0.0, "reason": _DEFAULT_REASON}],
         ),
-        # project_id not convertible to int → item skipped
+
         (
             [{"project_id": "bad_id"}],
             [],
         ),
-        # String score is coerced; None reason → default
+
         (
             [{"project_id": 1, "score": "0.75", "reason": None}],
             [{"project_id": 1, "score": 0.75, "reason": _DEFAULT_REASON}],
         ),
-        # Non-dict elements in list are silently skipped
+
         (
             [{"project_id": 1}, "not_a_dict", {"project_id": 2}],
             [
@@ -86,17 +71,8 @@ def test_normalize_remote_items(items, expected):
 
     assert _normalize_remote_items(items) == expected
 
-
-# ===========================================================================
-# ProjectFrontendForm.clean_tech_tags_raw
-#
-# No DB access needed – form validation is purely in-memory.
-# Django must be configured (done by pytest-django), but no transaction marker.
-# ===========================================================================
-
-
 def _project_form(tech_tags_raw: str):
-    """Return a ProjectFrontendForm instance with minimal valid data."""
+
     from apps.frontend.forms import ProjectFrontendForm
 
     return ProjectFrontendForm(
@@ -108,30 +84,25 @@ def _project_form(tech_tags_raw: str):
         }
     )
 
-
 def test_tags_empty_string_returns_empty_list():
     form = _project_form("")
     assert form.is_valid(), form.errors
     assert form.cleaned_data["tech_tags_raw"] == []
-
 
 def test_tags_single_tag():
     form = _project_form("Python")
     assert form.is_valid(), form.errors
     assert form.cleaned_data["tech_tags_raw"] == ["python"]
 
-
 def test_tags_multiple_comma_separated():
     form = _project_form("Python, Django, React")
     assert form.is_valid(), form.errors
     assert form.cleaned_data["tech_tags_raw"] == ["python", "django", "react"]
 
-
 def test_tags_deduplicated_case_insensitive():
     form = _project_form("Python, python, PYTHON")
     assert form.is_valid(), form.errors
     assert form.cleaned_data["tech_tags_raw"] == ["python"]
-
 
 def test_tags_too_many_raises_validation_error():
     from apps.frontend.forms.projects import _TAGS_MAX
@@ -141,30 +112,21 @@ def test_tags_too_many_raises_validation_error():
     assert not form.is_valid()
     assert "tech_tags_raw" in form.errors
 
-
 def test_tags_with_special_chars_accepted():
     form = _project_form("C++, React.js, ASP.NET")
     assert form.is_valid(), form.errors
     assert form.cleaned_data["tech_tags_raw"] == ["c++", "react.js", "asp.net"]
-
 
 def test_tags_starting_with_at_sign_rejected():
     form = _project_form("@invalid")
     assert not form.is_valid()
     assert "tech_tags_raw" in form.errors
 
-
 def test_tags_too_long_single_tag_rejected():
     long_tag = "a" * 51
     form = _project_form(long_tag)
     assert not form.is_valid()
     assert "tech_tags_raw" in form.errors
-
-
-# ===========================================================================
-# _build_graph_data  (apps.frontend.views.projects.catalog)
-# ===========================================================================
-
 
 def test_build_graph_data_empty_input():
     from apps.frontend.views.projects.catalog import _build_graph_data
@@ -173,7 +135,6 @@ def test_build_graph_data_empty_input():
     assert nodes == []
     assert edges == []
 
-
 def test_build_graph_data_single_article_single_author():
     from apps.frontend.views.projects.catalog import _build_graph_data
 
@@ -181,9 +142,8 @@ def test_build_graph_data_single_article_single_author():
     nodes, edges = _build_graph_data(articles)
     assert len(nodes) == 1
     assert nodes[0]["label"] == "Alice"
-    assert nodes[0]["value"] == 1  # appears in 1 article
+    assert nodes[0]["value"] == 1
     assert edges == []
-
 
 def test_build_graph_data_two_authors_one_article():
     from apps.frontend.views.projects.catalog import _build_graph_data
@@ -192,8 +152,7 @@ def test_build_graph_data_two_authors_one_article():
     nodes, edges = _build_graph_data(articles)
     assert len(nodes) == 2
     assert len(edges) == 1
-    assert edges[0]["value"] == 1  # co-authored once
-
+    assert edges[0]["value"] == 1
 
 def test_build_graph_data_repeated_coauthorship_increases_edge_weight():
     from apps.frontend.views.projects.catalog import _build_graph_data
@@ -204,8 +163,7 @@ def test_build_graph_data_repeated_coauthorship_increases_edge_weight():
     ]
     nodes, edges = _build_graph_data(articles)
     assert len(edges) == 1
-    assert edges[0]["value"] == 2  # two shared articles → weight 2
-
+    assert edges[0]["value"] == 2
 
 def test_build_graph_data_node_value_equals_article_count():
     from apps.frontend.views.projects.catalog import _build_graph_data
@@ -216,8 +174,8 @@ def test_build_graph_data_node_value_equals_article_count():
     ]
     nodes, edges = _build_graph_data(articles)
     by_label = {n["label"]: n for n in nodes}
-    assert by_label["Alice"]["value"] == 2  # in both articles
+    assert by_label["Alice"]["value"] == 2
     assert by_label["Bob"]["value"] == 1
     assert by_label["Carol"]["value"] == 1
-    # Two edges: Alice–Bob and Alice–Carol
+
     assert len(edges) == 2

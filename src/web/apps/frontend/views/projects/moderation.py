@@ -12,7 +12,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 _PAGE_SIZE = 9
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 def moderation_list(request):
@@ -32,7 +31,6 @@ def moderation_list(request):
         "ProjectStatus": ProjectStatus,
         "queue_count":   queue_count,
     })
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required
@@ -59,7 +57,6 @@ def moderation_detail(request, pk):
         "decision_form": decision_form,
     })
 
-
 @require_POST
 @login_required(login_url=LOGIN_URL)
 @moderator_required
@@ -85,7 +82,6 @@ def moderation_update_fields(request, pk):
     else:
         flash_form_errors(request, form)
     return redirect("frontend:moderation_detail", pk=pk)
-
 
 @require_POST
 @login_required(login_url=LOGIN_URL)

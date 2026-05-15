@@ -19,7 +19,6 @@ from .mixins import (
     _toast_trigger,
 )
 
-
 @require_POST
 def submit_application(request, pk):
     if not request.user.is_authenticated:
@@ -58,7 +57,6 @@ def submit_application(request, pk):
     response["HX-Trigger"] = _toast_trigger(toast_msg, toast_type)
     return response
 
-
 @method_decorator(require_POST, name="dispatch")
 class WithdrawApplicationView(LoginRequiredMixin, OwnedSubmittedApplicationMixin, View):
     login_url            = LOGIN_URL
@@ -69,7 +67,6 @@ class WithdrawApplicationView(LoginRequiredMixin, OwnedSubmittedApplicationMixin
         delete_application(self.application)
         messages.success(request, f"Заявка на проект «{project_title}» отозвана.")
         return redirect("frontend:project_list")
-
 
 class EditApplicationView(LoginRequiredMixin, OwnedSubmittedApplicationMixin, View):
     login_url            = LOGIN_URL

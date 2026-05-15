@@ -44,7 +44,6 @@ _PUB_TYPE_RU = {
     "OTHER":      "Прочее",
 }
 
-
 @login_required(login_url=LOGIN_URL)
 def project_list(request):
     try:
@@ -147,7 +146,6 @@ def project_list(request):
 
     return render(request, "frontend/project_list.html", context)
 
-
 def _student_catalog_context(request) -> dict:
     rec_projects: list  = []
     rec_reasons:  dict  = {}
@@ -217,7 +215,6 @@ def _student_catalog_context(request) -> dict:
         "owned_initiative_projects":  owned_initiative_projects,
     }
 
-
 def _bookmark_context(request) -> dict:
     fav_ids        = list(request.user.profile.favorite_project_ids)
     bookmarked_ids = set(fav_ids)
@@ -243,7 +240,6 @@ def _bookmark_context(request) -> dict:
         "bookmark_page_obj":          bookmark_page_obj,
         "bookmark_user_applications": bookmark_user_applications,
     }
-
 
 def _get_recommendations(request):
     from apps.recs.services import recommend_projects
@@ -292,7 +288,6 @@ def _get_recommendations(request):
         .order_by("-created_at")[:RECOMMENDED_COUNT]
     )
     return projects, {}, None
-
 
 def _customer_project_list(request):
     page_number   = request.GET.get("page", 1)
@@ -352,7 +347,6 @@ def _customer_project_list(request):
     raw_staff = _fetch_faculty_staff()
     staff     = raw_staff or _get_sample_staff()
 
-    # Try Neo4j graph service first; fall back to PostgreSQL-based builder
     graph_nodes, graph_edges = _fetch_coauthorship_graph()
     graph_from_neo4j = bool(graph_nodes)
     if not graph_nodes:
@@ -391,7 +385,7 @@ def _customer_project_list(request):
         "sample_staff":       staff,
         "graph_nodes_json":   json.dumps(graph_nodes, ensure_ascii=False),
         "graph_edges_json":   json.dumps(graph_edges, ensure_ascii=False),
-        # faculty / graph meta
+
         "using_faculty_data":         using_faculty_data,
         "graph_source":               _graph_source_label,
         "graph_articles_count":       _graph_articles_count,
@@ -401,7 +395,6 @@ def _customer_project_list(request):
         "faculty_staff_total":        FacultyPerson.objects.filter(is_stale=False).count() if using_faculty_data else 0,
         "faculty_courses_total":      0,
     })
-
 
 def _fetch_faculty_publications(limit: int = 30) -> list[dict]:
     cache_key = f"faculty:pubs:{limit}"
@@ -443,7 +436,6 @@ def _fetch_faculty_publications(limit: int = 30) -> list[dict]:
         logger.warning("faculty ORM publications query failed", exc_info=True)
         return []
 
-
 def _fetch_faculty_staff(limit: int = 50) -> list[dict]:
     cache_key = f"faculty:staff:{limit}"
     cached    = cache.get(cache_key)
@@ -477,7 +469,6 @@ def _fetch_faculty_staff(limit: int = 50) -> list[dict]:
     except Exception:
         logger.warning("faculty ORM staff query failed", exc_info=True)
         return []
-
 
 def _build_graph_data(articles):
     author_articles: dict[str, list[str]] = defaultdict(list)
@@ -523,18 +514,12 @@ def _build_graph_data(articles):
 
     return nodes, edges
 
-
 _GRAPH_CACHE_KEY = "graph:coauthorship"
-_GRAPH_CACHE_TTL = 1800  # 30 min — данные меняются редко
-
+_GRAPH_CACHE_TTL = 1800
 
 def _fetch_coauthorship_graph() -> tuple[list, list]:
-    """Try to fetch co-authorship graph from the graph microservice (Neo4j).
 
-    Returns (nodes, edges) in vis.js format, or ([], []) if the service is
-    unavailable or not configured — caller falls back to PostgreSQL-based graph.
-    """
-    import requests as _requests  # local import: avoid hard dep if not installed
+    import requests as _requests
 
     base_url = os.getenv("GRAPH_SERVICE_URL", "").rstrip("/")
     if not base_url:
@@ -556,7 +541,6 @@ def _fetch_coauthorship_graph() -> tuple[list, list]:
     except Exception:
         logger.warning("graph service /coauthorship fetch failed", exc_info=True)
         return [], []
-
 
 def _get_sample_articles() -> list[dict]:
     return [
@@ -615,7 +599,6 @@ def _get_sample_articles() -> list[dict]:
             "direction": "Статья",
         },
     ]
-
 
 def _get_sample_staff() -> list[dict]:
     return [

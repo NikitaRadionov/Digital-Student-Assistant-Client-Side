@@ -18,38 +18,31 @@ _LONG_COMMENT = (
 )
 assert len(_LONG_COMMENT) >= MODERATION_COMMENT_MIN_LEN
 
-
 def _uid():
     return uuid4().hex[:8]
-
 
 def _make_student():
     user = User.objects.create_user(username=f"stu-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.STUDENT)
     return user
 
-
 def _make_customer():
     user = User.objects.create_user(username=f"cust-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CUSTOMER)
     return user
-
 
 def _make_cpprp():
     user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CPPRP)
     return user
 
-
 def _make_staff():
     return User.objects.create_user(username=f"staff-{_uid()}", password="pass", is_staff=True)
-
 
 def _make_project(owner, *, status=ProjectStatus.ON_MODERATION, **kwargs):
     defaults = {"title": f"Project {_uid()}", "team_size": 3}
     defaults.update(kwargs)
     return Project.objects.create(owner=owner, status=status, **defaults)
-
 
 class TestModerationList:
 
@@ -108,7 +101,6 @@ class TestModerationList:
         response = client.get(reverse("frontend:moderation_list"))
         assert response.status_code == 200
         assert response.context["queue_count"] >= 2
-
 
 class TestModerateProjectDecide:
 

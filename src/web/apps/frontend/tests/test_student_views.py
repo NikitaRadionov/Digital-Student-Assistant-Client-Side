@@ -13,34 +13,28 @@ User = get_user_model()
 
 pytestmark = pytest.mark.django_db
 
-
 def _uid():
     return uuid4().hex[:8]
-
 
 def _make_student():
     user = User.objects.create_user(username=f"stu-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.STUDENT)
     return user
 
-
 def _make_customer():
     user = User.objects.create_user(username=f"cust-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CUSTOMER)
     return user
-
 
 def _make_cpprp():
     user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CPPRP)
     return user
 
-
 def _make_project(**kwargs):
     defaults = {"title": f"Project {_uid()}", "status": ProjectStatus.PUBLISHED, "team_size": 3}
     defaults.update(kwargs)
     return Project.objects.create(**defaults)
-
 
 class TestStudentOverview:
 

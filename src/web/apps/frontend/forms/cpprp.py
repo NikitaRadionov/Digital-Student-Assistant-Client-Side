@@ -2,7 +2,6 @@ from apps.account.models import DeadlineAudience
 from apps.users.models import UserRole, normalize_email
 from django import forms
 
-
 class DeadlineForm(forms.Form):
     slug = forms.SlugField(
         max_length=80,
@@ -26,7 +25,6 @@ class DeadlineForm(forms.Form):
     )
     is_active = forms.BooleanField(required=False, initial=True)
 
-
 class TemplateForm(forms.Form):
     slug = forms.SlugField(
         max_length=80,
@@ -42,7 +40,6 @@ class TemplateForm(forms.Form):
     audience = forms.ChoiceField(choices=DeadlineAudience.choices)
     description = forms.CharField(widget=forms.Textarea, required=False)
     is_active = forms.BooleanField(required=False, initial=True)
-
 
 class ExternalAllowlistBulkForm(forms.Form):
     emails = forms.CharField(

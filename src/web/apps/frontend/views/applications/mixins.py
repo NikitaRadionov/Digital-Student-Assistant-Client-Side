@@ -10,20 +10,13 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-
 def _require_student(request) -> HttpResponse | None:
-    """Return a 403 HTMX response if the user is not a student.
 
-    Caller must verify request.user.is_authenticated before calling this,
-    otherwise an anonymous user will receive "students only" instead of a
-    login redirect.
-    """
     if not has_any_role(request.user, allowed={UserRole.STUDENT}, allow_staff=False):
         response = HttpResponse(status=403)
         response["HX-Trigger"] = _toast_trigger("Подавать заявки могут только студенты.", "error")
         return response
     return None
-
 
 def _htmx_unauth_response(request, pk: int) -> HttpResponse:
     if request.headers.get("HX-Request"):
@@ -38,10 +31,8 @@ def _htmx_unauth_response(request, pk: int) -> HttpResponse:
         status=401,
     )
 
-
 def _toast_trigger(message: str, toast_type: str = "info") -> str:
     return json.dumps({"showToast": {"message": message, "type": toast_type}})
-
 
 def _build_apply_response(request, source: str, project, application) -> HttpResponse:
     if source == "card":
@@ -58,7 +49,6 @@ def _build_apply_response(request, source: str, project, application) -> HttpRes
         "ApplicationStatus": ApplicationStatus,
         "ProjectStatus":     ProjectStatus,
     })
-
 
 class OwnedSubmittedApplicationMixin:
     status_error_message: str = "Действие доступно только для заявки со статусом «На рассмотрении»."

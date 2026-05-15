@@ -4,7 +4,6 @@
 
 {% block content %}
 
-<!-- Page header -->
 <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.75rem;">
   <div>
     <h1 class="text-2xl font-bold text-gray-900">Кабинет преподавателя</h1>
@@ -19,7 +18,6 @@
   </a>
 </div>
 
-<!-- Main tab bar -->
 <div class="flex items-center gap-0.5 mb-6 bg-white border border-gray-200 rounded-xl p-1"
      style="width:fit-content;">
   <button id="tab-btn-summary"
@@ -53,12 +51,8 @@
   </button>
 </div>
 
-<!-- ================================================================ -->
-<!-- TAB: Сводка (дашборд заказчика)                                    -->
-<!-- ================================================================ -->
 <div id="tab-panel-summary">
 
-  <!-- Stat cards -->
   <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 mb-6">
 
     <div class="bg-white border border-gray-200 rounded-xl px-4 py-4">
@@ -83,7 +77,6 @@
 
   </div>
 
-  <!-- Projects needing attention -->
   {% if dashboard.projects_with_pending %}
   <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
     <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -133,7 +126,6 @@
   </div>
   {% endif %}
 
-  <!-- All-time stats -->
   {% if dashboard.total_apps %}
   <div class="flex items-center gap-3 text-sm text-gray-400 px-1">
     <span>Всего заявок за всё время: <strong class="text-gray-600">{{ dashboard.total_apps }}</strong></span>
@@ -144,15 +136,10 @@
   </div>
   {% endif %}
 
-</div><!-- /tab-panel-summary -->
+</div>
 
-
-<!-- ================================================================ -->
-<!-- TAB: Мои проекты                                                   -->
-<!-- ================================================================ -->
 <div id="tab-panel-projects" style="display:none;">
 
-  <!-- Status filter -->
   {% if total_count %}
   <div class="flex items-center gap-0.5 mb-6 bg-white border border-gray-200 rounded-xl p-1 flex-wrap"
        style="width:fit-content;">
@@ -199,7 +186,6 @@
   </div>
   {% endif %}
 
-  <!-- Project list -->
   {% if page_obj.object_list %}
   <div style="display:flex;flex-direction:column;gap:12px;">
 
@@ -210,7 +196,6 @@
 
       <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:start;">
 
-        <!-- Left: title + meta -->
         <div style="min-width:0;">
           <div class="mb-2">
             {% if project.status == "draft" %}
@@ -277,7 +262,6 @@
           {% endif %}
         </div>
 
-        <!-- Right: team + date -->
         <div style="text-align:right;flex-shrink:0;min-width:90px;">
           <p class="text-sm font-semibold text-gray-900">
             {{ project.accepted_participants_count }}&nbsp;/&nbsp;{{ project.team_size }}
@@ -302,7 +286,6 @@
 
   </div>
 
-  <!-- Pagination -->
   {% if page_obj.has_other_pages %}
   <div class="flex items-center justify-center gap-1 mt-8">
     {% if page_obj.has_previous %}
@@ -350,12 +333,8 @@
   </div>
   {% endif %}
 
-</div><!-- /tab-panel-projects -->
+</div>
 
-
-<!-- ================================================================ -->
-<!-- TAB: Статьи                                                        -->
-<!-- ================================================================ -->
 <div id="tab-panel-articles" style="display:none;">
 
   <div class="flex flex-wrap items-center gap-3 mb-5">
@@ -401,7 +380,6 @@
 
         <div style="min-width:0;">
 
-          <!-- Direction badge -->
           {% if article.direction %}
           <div class="mb-2">
             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -410,7 +388,6 @@
           </div>
           {% endif %}
 
-          <!-- Title -->
           {% if article.doi_url %}
           <a href="{{ article.doi_url }}" target="_blank" rel="noopener"
              class="text-base font-semibold text-gray-900 hover:text-blue-600 transition-colors leading-snug block mb-1">
@@ -420,19 +397,16 @@
           <h3 class="text-base font-semibold text-gray-900 leading-snug mb-1">{{ article.title }}</h3>
           {% endif %}
 
-          <!-- Authors -->
           {% if article.authors %}
           <p class="text-sm text-gray-600 mb-1">
             {% for author in article.authors %}{{ author }}{% if not forloop.last %}, {% endif %}{% endfor %}
           </p>
           {% endif %}
 
-          <!-- Venue -->
           {% if article.venue %}
           <p class="text-xs text-gray-400 italic mb-2">{{ article.venue }}</p>
           {% endif %}
 
-          <!-- Keywords -->
           {% if article.keywords %}
           <div class="flex flex-wrap gap-1">
             {% for kw in article.keywords %}
@@ -443,7 +417,6 @@
 
         </div>
 
-        <!-- Right: year + link -->
         <div style="text-align:right;flex-shrink:0;min-width:60px;">
           {% if article.year %}
           <p class="text-sm font-semibold text-gray-900">{{ article.year }}</p>
@@ -463,7 +436,7 @@
       <p class="text-gray-500">Статьи пока не загружены</p>
     </div>
     {% endfor %}
-    <!-- Shown by JS when active filters match nothing -->
+
     <div id="articles-filter-empty" style="display:none;"
          class="text-center py-12 bg-white border border-gray-200 rounded-2xl">
       <p class="text-sm font-medium text-gray-700 mb-1">Нет статей по выбранным критериям</p>
@@ -471,12 +444,8 @@
     </div>
   </div>
 
-</div><!-- /tab-panel-articles -->
+</div>
 
-
-<!-- ================================================================ -->
-<!-- TAB: Сотрудники                                                    -->
-<!-- ================================================================ -->
 <div id="tab-panel-staff" style="display:none;">
 
   <p class="text-sm text-gray-500 mb-5">
@@ -492,7 +461,6 @@
     {% for person in sample_staff %}
     <div class="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all flex flex-col gap-3">
 
-      <!-- Avatar placeholder + name -->
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
           <span class="text-sm font-bold text-blue-600">
@@ -507,12 +475,10 @@
         </div>
       </div>
 
-      <!-- Department -->
       {% if person.department %}
       <p class="text-xs text-gray-500 leading-snug">{{ person.department }}</p>
       {% endif %}
 
-      <!-- Research areas -->
       {% if person.research_areas %}
       <div class="flex flex-wrap gap-1">
         {% for area in person.research_areas %}
@@ -521,7 +487,6 @@
       </div>
       {% endif %}
 
-      <!-- Footer: works count + link -->
       <div class="flex items-center justify-between pt-2 border-t border-gray-100 mt-auto">
         {% if person.works_count %}
         <span class="text-xs text-gray-400">{{ person.works_count }} публикаций</span>
@@ -542,12 +507,8 @@
     {% endfor %}
   </div>
 
-</div><!-- /tab-panel-staff -->
+</div>
 
-
-<!-- ================================================================ -->
-<!-- TAB: Граф соавторства                                           -->
-<!-- ================================================================ -->
 <div id="tab-panel-graph" style="display:none;">
 
   <p class="text-sm text-gray-500 mb-2">
@@ -555,7 +516,7 @@
     Узел — автор, ребро — совместная публикация.
     Размер узла пропорционален числу публикаций в выборке.
   </p>
-  <!-- Legend -->
+
   <div class="flex items-center gap-4 mb-4 flex-wrap">
     <div class="flex items-center gap-2">
       <span class="inline-block w-4 h-4 rounded-full bg-blue-200 border-2 border-blue-500"></span>
@@ -568,11 +529,9 @@
     <span class="text-xs text-gray-400">Наведите на узел или ребро для подсказки</span>
   </div>
 
-  <!-- Graph canvas -->
   <div id="vis-graph-container"
        style="height:500px;border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;"></div>
 
-  <!-- Stats -->
   <div class="flex gap-6 mt-4">
     <div class="text-center">
       <p class="text-lg font-bold text-gray-900" id="graph-stat-nodes">—</p>
@@ -588,13 +547,10 @@
     </div>
   </div>
 
-</div><!-- /tab-panel-graph -->
+</div>
 
-
-<!-- Vis.js Network (CDN) — загружается один раз, используется только при открытии вкладки Граф -->
 <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
 
-<!-- Tab switching JS -->
 <script>
 var _graphInitialized = false;
 
@@ -640,7 +596,6 @@ function _initGraph() {
   new vis.Network(container, data, options);
 }
 
-/* ── Article filtering ──────────────────────────────────────────── */
 window.filterArticles = function() {
   var year = (document.getElementById('article-year-filter') || {}).value || '';
   var dir  = (document.getElementById('article-dir-filter')  || {}).value || '';
@@ -671,10 +626,9 @@ function switchTab(tab) {
       btn.classList.add('text-gray-500', 'hover:text-gray-700');
     }
   });
-  // Initialize graph on first open
+
   if (tab === 'graph') { _initGraph(); }
 
-  // Reflect active tab in URL without reload
   var url = new URL(window.location);
   if (tab !== 'summary') {
     url.searchParams.set('tab', tab);
@@ -684,8 +638,6 @@ function switchTab(tab) {
   history.replaceState(null, '', url);
 }
 
-// Restore active tab from URL on load
-// Default: 'summary'. If ?status=X is set → switch to 'projects'. If ?tab=X → use that.
 (function() {
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
@@ -694,7 +646,7 @@ function switchTab(tab) {
   } else if (params.get('status')) {
     switchTab('projects');
   }
-  // else: 'summary' is already visible by default (no style="display:none")
+
 })();
 </script>
 

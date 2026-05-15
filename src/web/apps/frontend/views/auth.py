@@ -32,7 +32,6 @@ from django.views.decorators.http import require_POST
 
 User = get_user_model()
 
-
 def _safe_redirect_target(raw_next_url: str) -> str:
     candidate = (raw_next_url or "").strip()
     if not candidate:
@@ -42,7 +41,6 @@ def _safe_redirect_target(raw_next_url: str) -> str:
         return path
     return reverse("frontend:project_list")
 
-
 def _build_unique_username(email: str) -> str:
     base = email.split("@")[0]
     username, n = base, 1
@@ -51,25 +49,20 @@ def _build_unique_username(email: str) -> str:
         n += 1
     return username
 
-
-
 def _verification_redirect_url(email: str, next_url: str = "") -> str:
     query = {"email": email}
     if next_url:
         query["next"] = next_url
     return f"{reverse('frontend:verify_email')}?{urlencode(query)}"
 
-
 def _corporate_email_domains() -> set[str]:
     configured = getattr(settings, "ALLOWED_CORPORATE_EMAIL_DOMAINS", ["edu.hse.ru"])
     return {domain.strip().lower() for domain in configured if domain.strip()}
-
 
 def _is_corporate_email(email: str) -> bool:
     normalized = normalize_email(email)
     _, _, domain = normalized.partition("@")
     return bool(domain) and domain in _corporate_email_domains()
-
 
 def _external_email_is_allowlisted(email: str, role: str) -> bool:
     return ExternalAccessAllowlist.objects.filter(
@@ -77,7 +70,6 @@ def _external_email_is_allowlisted(email: str, role: str) -> bool:
         allowed_role=role,
         is_active=True,
     ).exists()
-
 
 def _create_or_refresh_external_access_request(
     *,
@@ -96,7 +88,6 @@ def _create_or_refresh_external_access_request(
             "reviewed_at":    None,
         },
     )
-
 
 class AuthView(View):
 
@@ -248,7 +239,6 @@ class AuthView(View):
             "UserRole":      UserRole,
         }
 
-
 class VerifyEmailView(View):
 
     template_name = "frontend/verify_email.html"
@@ -307,7 +297,6 @@ class VerifyEmailView(View):
             "generic_resend_message": VERIFICATION_GENERIC_RESEND_MESSAGE,
         }
 
-
 @require_POST
 def resend_email_code_view(request):
     email    = request.POST.get("email", "").strip().lower()
@@ -323,7 +312,6 @@ def resend_email_code_view(request):
     else:
         messages.info(request, result.message)
     return redirect(_verification_redirect_url(email, next_url))
-
 
 @require_POST
 def logout_view(request):

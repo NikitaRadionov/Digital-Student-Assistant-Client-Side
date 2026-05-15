@@ -7,7 +7,6 @@ from django.shortcuts import get_object_or_404, render
 
 _PAGE_SIZE = 12
 
-
 @login_required(login_url=LOGIN_URL)
 def faculty_list(request):
     query    = request.GET.get("q", "").strip()
@@ -22,7 +21,6 @@ def faculty_list(request):
         "query":    query,
         "total":    paginator.count,
     })
-
 
 @login_required(login_url=LOGIN_URL)
 def faculty_detail(request, source_key):

@@ -10,7 +10,6 @@ _INTERESTS_MAX = 20
 _INTEREST_ITEM_MIN = 2
 _INTEREST_ITEM_MAX = 50
 
-
 class ProfileEditForm(forms.Form):
     full_name    = forms.CharField(required=False, max_length=_NAME_MAX)
     bio          = forms.CharField(required=False, widget=forms.Textarea, max_length=_BIO_MAX)

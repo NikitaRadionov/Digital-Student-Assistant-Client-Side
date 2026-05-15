@@ -7,10 +7,8 @@ from django.core.cache import cache
 
 pytestmark = pytest.mark.django_db
 
-
 def _uid():
     return uuid4().hex[:8]
-
 
 def _make_publication(**overrides):
     defaults = {
@@ -25,13 +23,11 @@ def _make_publication(**overrides):
     defaults.update(overrides)
     return FacultyPublication.objects.create(**defaults)
 
-
 @pytest.fixture(autouse=True)
 def clear_faculty_cache():
     cache.clear()
     yield
     cache.clear()
-
 
 class TestFetchFacultyPublications:
 

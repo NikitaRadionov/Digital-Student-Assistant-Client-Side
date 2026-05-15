@@ -4,7 +4,6 @@
 
 {% block content %}
 
-<!-- Page header -->
 <div class="flex items-start justify-between gap-4 mb-6">
   <div>
     <h1 class="text-xl font-semibold text-gray-900">Мои заявки</h1>
@@ -26,7 +25,7 @@
 </div>
 
 {% if total_count %}
-<!-- Status filter tabs -->
+
 <div class="flex items-center gap-1 mb-6 border-b border-gray-200">
 
   <a href="{% url 'frontend:application_list' %}"
@@ -72,17 +71,14 @@
 
 {% if page_obj.object_list %}
 
-<!-- Applications list -->
 <div class="space-y-3">
   {% for app in page_obj.object_list %}
 
   <article class="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all" style="transition-duration:150ms;">
     <div class="flex items-start justify-between gap-4">
 
-      <!-- Left: project info + meta -->
       <div class="flex-1 min-w-0">
 
-        <!-- Status badge + date -->
         <div class="flex flex-wrap items-center gap-2 mb-2">
 
           {% if app.status == ApplicationStatus.ACCEPTED %}
@@ -110,19 +106,16 @@
 
           <span class="text-xs text-gray-400">{{ app.created_at|date:"d.m.Y" }}</span>
 
-          <!-- Project status hint -->
           {% if app.project.status == "staffed" %}
             <span class="text-xs text-gray-400">· Команда уже набрана</span>
           {% endif %}
         </div>
 
-        <!-- Project title -->
         <a href="{% url 'frontend:project_detail' app.project.pk %}"
            class="text-base font-semibold text-gray-900 hover:text-blue-600 transition-colors leading-snug">
           {{ app.project.title }}
         </a>
 
-        <!-- Project tech tags -->
         {% if app.project.tech_tags %}
         <div class="flex flex-wrap gap-1 mt-2">
           {% for tag in app.project.tech_tags|slice:":4" %}
@@ -131,7 +124,6 @@
         </div>
         {% endif %}
 
-        <!-- Motivation preview -->
         {% if app.motivation %}
         <div class="mt-3 pt-3 border-t border-gray-100">
           <p class="text-xs text-gray-400 font-medium mb-1">Ваша мотивация</p>
@@ -142,7 +134,6 @@
         </div>
         {% endif %}
 
-        <!-- Review comment (if rejected with comment) -->
         {% if app.status == ApplicationStatus.REJECTED and app.review_comment %}
         <div class="mt-3 pt-3 border-t border-gray-100">
           <p class="text-xs text-red-500 font-medium mb-1">Комментарий куратора</p>
@@ -150,7 +141,6 @@
         </div>
         {% endif %}
 
-        <!-- Accept message -->
         {% if app.status == ApplicationStatus.ACCEPTED %}
         <div class="mt-3 pt-3 border-t border-gray-100">
           <p class="text-sm text-green-700 font-medium flex items-center gap-1">
@@ -164,16 +154,15 @@
 
       </div>
 
-      <!-- Right: team info + link -->
       <div class="flex-shrink-0 flex flex-col items-end gap-3">
-        <!-- Team progress -->
+
         <div class="text-right">
           <p class="text-xs text-gray-400">Команда</p>
           <p class="text-sm font-semibold text-gray-700">
             {{ app.project.accepted_participants_count }}&thinsp;/&thinsp;{{ app.project.team_size }}
           </p>
         </div>
-        <!-- Link to project -->
+
         <a href="{% url 'frontend:project_detail' app.project.pk %}"
            class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 transition-colors">
           Проект
@@ -189,7 +178,6 @@
   {% endfor %}
 </div>
 
-<!-- Pagination -->
 {% if page_obj.has_other_pages %}
 <nav class="flex items-center justify-center gap-1 mt-8">
   {% if page_obj.has_previous %}
@@ -232,7 +220,6 @@
 
 {% else %}
 
-<!-- Empty state: filtered but no results -->
 {% if status_filter %}
 <div class="flex flex-col items-center justify-center py-20 text-center">
   <div class="flex items-center justify-center rounded-full bg-gray-100 mb-4"
@@ -248,7 +235,7 @@
 </div>
 
 {% else %}
-<!-- Empty state: no applications at all -->
+
 <div class="flex flex-col items-center justify-center py-24 text-center">
   <div class="flex items-center justify-center rounded-full bg-blue-50 mb-5"
        style="width:64px;height:64px;">

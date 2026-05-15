@@ -12,22 +12,18 @@ User = get_user_model()
 
 pytestmark = pytest.mark.django_db
 
-
 def _uid():
     return uuid4().hex[:8]
-
 
 def _make_student():
     user = User.objects.create_user(username=f"stu-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.STUDENT)
     return user
 
-
 def _make_cpprp():
     user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CPPRP)
     return user
-
 
 def _make_faculty_person(*, is_stale=False, full_name=None):
     key = _uid()
@@ -41,12 +37,8 @@ def _make_faculty_person(*, is_stale=False, full_name=None):
         is_stale=is_stale,
     )
 
-
 def _make_stale_faculty_person():
     return _make_faculty_person(is_stale=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFacultyList:
 
@@ -126,9 +118,6 @@ class TestFacultyList:
         assert "total" in ctx
         assert "page_obj" in ctx
         assert ctx["total"] >= 2
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 
 class TestFacultyDetail:
 

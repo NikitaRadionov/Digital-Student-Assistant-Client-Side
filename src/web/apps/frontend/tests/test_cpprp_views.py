@@ -1,10 +1,3 @@
-"""
-CPPRP administration dashboard view tests.
-
-Covers: access control (unauth, student, customer, cpprp), dashboard context
-(project counts, application totals), deadline CRUD (create, duplicate slug,
-invalid form, toggle, delete), template CRUD, and CSV export responses.
-"""
 
 from uuid import uuid4
 
@@ -27,28 +20,23 @@ User = get_user_model()
 
 pytestmark = pytest.mark.django_db
 
-
 def _uid():
     return uuid4().hex[:8]
-
 
 def _make_student():
     user = User.objects.create_user(username=f"stu-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.STUDENT)
     return user
 
-
 def _make_customer():
     user = User.objects.create_user(username=f"cust-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CUSTOMER)
     return user
 
-
 def _make_cpprp():
     user = User.objects.create_user(username=f"cpprp-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CPPRP)
     return user
-
 
 def _make_project(owner=None, **kwargs):
     if owner is None:
@@ -56,7 +44,6 @@ def _make_project(owner=None, **kwargs):
     defaults = {"title": f"Project {_uid()}", "status": ProjectStatus.PUBLISHED, "team_size": 3}
     defaults.update(kwargs)
     return Project.objects.create(owner=owner, **defaults)
-
 
 class TestCpprpDashboard:
 
@@ -111,7 +98,6 @@ class TestCpprpDashboard:
         assert totals["total"] >= 1
         assert totals["submitted"] >= 1
 
-
 class TestCpprpDeadlineCRUD:
 
     def test_create_deadline_success(self):
@@ -149,13 +135,13 @@ class TestCpprpDeadlineCRUD:
         assert PlatformDeadline.objects.filter(slug=slug).count() == 1
 
     def test_create_deadline_invalid_form_flashes_error(self):
-        """Missing required 'title' must cause form validation to fail."""
+
         cpprp = _make_cpprp()
         client = Client()
         client.force_login(cpprp)
         response = client.post(
             reverse("frontend:cpprp_deadline_create"),
-            {"slug": f"sl-{_uid()}", "audience": DeadlineAudience.GLOBAL},  # no title
+            {"slug": f"sl-{_uid()}", "audience": DeadlineAudience.GLOBAL},
         )
         assert response.status_code == 302
         stored = list(response.wsgi_request._messages)
@@ -202,7 +188,6 @@ class TestCpprpDeadlineCRUD:
         )
         assert response.status_code == 302
         assert not PlatformDeadline.objects.filter(pk=pk).exists()
-
 
 class TestCpprpTemplateCRUD:
 
@@ -278,7 +263,6 @@ class TestCpprpTemplateCRUD:
         assert response.status_code == 302
         assert not DocumentTemplate.objects.filter(pk=pk).exists()
 
-
 class TestCpprpExport:
 
     def test_export_projects_returns_csv(self):
@@ -315,7 +299,6 @@ class TestCpprpExport:
         client.force_login(_make_student())
         response = client.get(reverse("frontend:cpprp_export_projects"))
         assert response.status_code in (302, 403)
-
 
 class TestCpprpExternalAccess:
 

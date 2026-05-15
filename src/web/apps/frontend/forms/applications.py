@@ -1,10 +1,3 @@
-"""
-Frontend forms for application actions.
-
-MotivationForm        — motivation text (submit & edit application).
-ApplicationFilterForm — status filter on the project applications page.
-ReviewApplicationForm — accept / reject decision with optional comment.
-"""
 
 from django import forms
 
@@ -14,9 +7,7 @@ from apps.applications.transitions import REVIEW_COMMENT_MIN_LEN
 _MOTIVATION_MIN = 30
 _MOTIVATION_MAX = 3000
 
-
 class MotivationForm(forms.Form):
-    """Used in submit_application and edit_application."""
 
     motivation = forms.CharField(
         required=False,
@@ -36,9 +27,7 @@ class MotivationForm(forms.Form):
             )
         return motivation
 
-
 class ApplicationFilterForm(forms.Form):
-    """GET-form: filter applications by status on project_applications page."""
 
     STATUS_CHOICES = [
         ("", "Все"),
@@ -55,9 +44,7 @@ class ApplicationFilterForm(forms.Form):
     def clean_status(self) -> str:
         return self.cleaned_data.get("status", "")
 
-
 class ReviewApplicationForm(forms.Form):
-    """POST-form: accept or reject an application."""
 
     DECISION_CHOICES = [
         ("accept", "Принять"),

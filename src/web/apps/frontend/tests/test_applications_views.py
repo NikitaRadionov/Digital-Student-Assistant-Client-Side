@@ -1,12 +1,4 @@
-"""
-Tests for application-related SSR views:
-  - submit_application
-  - application_list
-  - project_applications
-  - review_application_view
-  - WithdrawApplicationView
-  - EditApplicationView
-"""
+
 import json
 from uuid import uuid4
 
@@ -25,48 +17,33 @@ pytestmark = pytest.mark.django_db
 _LONG_COMMENT = "К сожалению, ваша заявка не соответствует требованиям проекта по ряду критериев."
 _LONG_MOTIVATION = "Я хочу участвовать в этом проекте, потому что обладаю необходимым опытом."
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _uid():
     return uuid4().hex[:8]
-
 
 def _make_student():
     user = User.objects.create_user(username=f"stu-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.STUDENT)
     return user
 
-
 def _make_customer():
     user = User.objects.create_user(username=f"cust-{_uid()}", password="pass")
     UserProfile.objects.create(user=user, role=UserRole.CUSTOMER)
     return user
-
 
 def _make_staff():
     return User.objects.create_user(
         username=f"staff-{_uid()}", password="pass", is_staff=True
     )
 
-
 def _make_project(**kwargs):
     defaults = {"title": f"Project {_uid()}", "status": ProjectStatus.PUBLISHED, "team_size": 5}
     defaults.update(kwargs)
     return Project.objects.create(**defaults)
 
-
 def _make_submitted_application(project, student):
     return Application.objects.create(
         project=project, applicant=student, status=ApplicationStatus.SUBMITTED
     )
-
-
-# ---------------------------------------------------------------------------
-# submit_application
-# ---------------------------------------------------------------------------
 
 class TestSubmitApplication:
 
@@ -191,11 +168,6 @@ class TestSubmitApplication:
         trigger = json.loads(response["HX-Trigger"])
         assert trigger["showToast"]["type"] == "info"
 
-
-# ---------------------------------------------------------------------------
-# application_list  (legacy redirect)
-# ---------------------------------------------------------------------------
-
 class TestApplicationList:
 
     def test_authenticated_redirects_to_projects_applications_tab(self):
@@ -209,11 +181,6 @@ class TestApplicationList:
         response = Client().get(reverse("frontend:application_list"))
         assert response.status_code == 302
         assert "/auth/" in response["Location"]
-
-
-# ---------------------------------------------------------------------------
-# project_applications
-# ---------------------------------------------------------------------------
 
 class TestProjectApplications:
 
@@ -322,11 +289,6 @@ class TestProjectApplications:
         assert ctx["counts"]["accepted"]  == 1
         assert ctx["counts"]["rejected"]  == 1
         assert ctx["total_count"] == 3
-
-
-# ---------------------------------------------------------------------------
-# review_application_view
-# ---------------------------------------------------------------------------
 
 class TestReviewApplicationView:
 
@@ -447,11 +409,6 @@ class TestReviewApplicationView:
         assert app.status == ApplicationStatus.ACCEPTED
         assert any("статус" in str(m) for m in response.wsgi_request._messages)
 
-
-# ---------------------------------------------------------------------------
-# WithdrawApplicationView
-# ---------------------------------------------------------------------------
-
 class TestWithdrawApplicationView:
 
     def test_unauthenticated_redirects_to_login(self):
@@ -523,11 +480,6 @@ class TestWithdrawApplicationView:
         assert response.status_code == 302
         assert not Application.objects.filter(pk=app_pk).exists()
         assert any("отозвана" in str(m) for m in response.wsgi_request._messages)
-
-
-# ---------------------------------------------------------------------------
-# EditApplicationView
-# ---------------------------------------------------------------------------
 
 class TestEditApplicationView:
 

@@ -10,7 +10,6 @@ from django.views.decorators.http import require_POST
 
 from .dashboard import _cpprp_tab_redirect
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -36,7 +35,6 @@ def cpprp_deadline_create(request):
         flash_form_errors(request, form)
     return _cpprp_tab_redirect("deadlines")
 
-
 @login_required(login_url=LOGIN_URL)
 @moderator_required
 @require_POST
@@ -47,7 +45,6 @@ def cpprp_deadline_toggle(request, pk):
     state = "активирован" if dl.is_active else "деактивирован"
     messages.success(request, f"Дедлайн «{dl.title}» {state}.")
     return _cpprp_tab_redirect("deadlines")
-
 
 @login_required(login_url=LOGIN_URL)
 @moderator_required

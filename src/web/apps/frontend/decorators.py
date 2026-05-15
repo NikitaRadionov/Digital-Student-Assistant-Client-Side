@@ -5,13 +5,11 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 
-
 def _get_role(user) -> str:
     try:
         return user.profile.role
     except Exception:
         return ""
-
 
 def require_role(*roles: str, redirect_url: str = "frontend:project_list", message: str = ""):
 
@@ -28,7 +26,6 @@ def require_role(*roles: str, redirect_url: str = "frontend:project_list", messa
 
     return decorator
 
-
 def moderator_required(view_func):
 
     @functools.wraps(view_func)
@@ -38,7 +35,6 @@ def moderator_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return wrapper
-
 
 customer_required = require_role(
     UserRole.CUSTOMER,

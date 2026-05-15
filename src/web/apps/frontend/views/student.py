@@ -11,7 +11,6 @@ from django.shortcuts import render
 _RECENT_APPS = 5
 _RECENT_FAVS = 6
 
-
 @login_required(login_url=LOGIN_URL)
 @student_required
 def student_overview(request):
